@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "PushupCrew",
+    "slug": "pushup-crew",
+    "scheme": "pushupcrew",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#050505",
+    "splash": {
+      "backgroundColor": "#050505",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "com.pushupcrew.app",
+      "supportsTablet": false,
+      "userInterfaceStyle": "dark",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.pushupcrew.app",
+      "userInterfaceStyle": "dark",
+      "adaptiveIcon": {
+        "backgroundColor": "#050505"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-apple-authentication"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "292727b2-8ad2-4a65-a59f-d46d6e774b61"
+      }
+    }
+  }
+}

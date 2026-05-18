@@ -1,0 +1,33 @@
+// Seed data mirrors shared.jsx so the skeleton matches the prototype 1:1.
+import type { CrewMember, ChatMessage, Crew } from '@/types';
+
+export const SEED_CREW: CrewMember[] = [
+  { id: 'nik',    name: 'Nik',    handle: '@nik',  level: 14, xp: 1820, streak: 23, today: 0,   week: 412, total: 9240,  isMe: true },
+  { id: 'daniel', name: 'Daniel', handle: '@dan',  level: 16, xp: 2410, streak: 31, today: 120, week: 540, total: 11180 },
+  { id: 'sascha', name: 'Sascha', handle: '@sash', level: 12, xp: 1420, streak: 9,  today: 60,  week: 280, total: 7550 },
+];
+
+export const SEED_CHAT: ChatMessage[] = [
+  { id: 1, who: 'daniel', t: '08:14', text: 'mahlzeit, 120 sind durch' },
+  { id: 2, who: 'sascha', t: '08:22', text: 'bro wie' },
+  { id: 3, who: 'daniel', t: '08:23', text: 'eat sleep pushup repeat' },
+  { id: 4, who: 'nik',    t: '08:31', text: 'gleich gleich' },
+  { id: 5, who: 'sascha', t: '09:02', text: 'wenn nik heute skipt, €1 in den topf' },
+];
+
+export const SEED_CREW_META: Crew = {
+  id: 'crew-1',
+  name: 'DIE BROS',
+  inviteCode: 'GAINS-XY42',
+  skipPotCents: 300, // €3
+};
+
+// Deterministic pseudo-week data for sparklines, matches shared.jsx algorithm.
+const dayLabels = ['M', 'D', 'M', 'D', 'F', 'S', 'S'];
+export const weekFor = (id: string) => {
+  const seed = id.charCodeAt(0) + (id.charCodeAt(1) ?? 0);
+  return dayLabels.map((d, i) => {
+    const v = ((seed * 17 + i * 41) % 130) + 30;
+    return { d, v: i === 6 ? null : v } as { d: string; v: number | null };
+  });
+};
