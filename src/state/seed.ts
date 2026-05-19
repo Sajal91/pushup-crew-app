@@ -8,22 +8,22 @@ export const SEED_CREW: CrewMember[] = [
 ];
 
 export const SEED_CHAT: ChatMessage[] = [
-  { id: 1, who: 'daniel', t: '08:14', text: 'mahlzeit, 120 sind durch' },
-  { id: 2, who: 'sascha', t: '08:22', text: 'bro wie' },
+  { id: 1, who: 'daniel', t: '08:14', text: '120 done, let\'s eat' },
+  { id: 2, who: 'sascha', t: '08:22', text: 'bro how' },
   { id: 3, who: 'daniel', t: '08:23', text: 'eat sleep pushup repeat' },
-  { id: 4, who: 'nik',    t: '08:31', text: 'gleich gleich' },
-  { id: 5, who: 'sascha', t: '09:02', text: 'wenn nik heute skipt, €1 in den topf' },
+  { id: 4, who: 'nik',    t: '08:31', text: 'coming soon' },
+  { id: 5, who: 'sascha', t: '09:02', text: 'if nik skips today, €1 in the pot' },
 ];
 
 export const SEED_CREW_META: Crew = {
   id: 'crew-1',
-  name: 'DIE BROS',
+  name: 'THE BROS',
   inviteCode: 'GAINS-XY42',
   skipPotCents: 300, // €3
 };
 
 // Deterministic pseudo-week data for sparklines, matches shared.jsx algorithm.
-const dayLabels = ['M', 'D', 'M', 'D', 'F', 'S', 'S'];
+const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 export const weekFor = (id: string) => {
   const seed = id.charCodeAt(0) + (id.charCodeAt(1) ?? 0);
   return dayLabels.map((d, i) => {

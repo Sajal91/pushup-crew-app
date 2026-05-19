@@ -24,15 +24,15 @@ export default function RankScreen() {
 
   return (
     <ScreenContainer>
-      <SectionTitle kicker="RANKING">RANGLISTE</SectionTitle>
+      <SectionTitle kicker="RANKING">LEADERBOARD</SectionTitle>
 
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 6 }}>
         <SegmentedToggle
           value={mode}
           onChange={setMode}
           options={[
-            { value: 'today', label: 'HEUTE' },
-            { value: 'week', label: 'WOCHE' },
+            { value: 'today', label: 'TODAY' },
+            { value: 'week', label: 'WEEK' },
           ]}
         />
       </View>
@@ -50,7 +50,7 @@ export default function RankScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>
                     {m.name.toUpperCase()}
-                    {isMe ? <Text style={{ color: colors.acid }}> · DU</Text> : null}
+                    {isMe ? <Text style={{ color: colors.acid }}> · YOU</Text> : null}
                   </Text>
                   <Text style={styles.meta}>
                     LVL {m.level} · {m.streak}D STREAK
@@ -78,7 +78,7 @@ export default function RankScreen() {
           <Kicker style={{ color: colors.blood, marginBottom: 6 }}>// SKIP POT</Kicker>
           <Text style={styles.potValue}>{formatEuro(crewMeta.skipPotCents)}</Text>
           <Text style={styles.potNote}>
-            Skip-Tage: Nik 1, Sascha 2. Jeder Skip = €1.
+            Skip days: Nik 1, Sascha 2. Each skip = €1.
           </Text>
         </Panel>
       </View>

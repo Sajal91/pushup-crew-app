@@ -33,10 +33,10 @@ export default function Home() {
         </Kicker>
         <Text style={styles.heroName}>{me.name.toUpperCase()},</Text>
         {leading ? (
-          <Text style={[styles.heroStatus, styles.heroStatusAcid]}>DU FÜHRST.</Text>
+          <Text style={[styles.heroStatus, styles.heroStatusAcid]}>YOU&apos;RE LEADING.</Text>
         ) : (
           <Text style={[styles.heroStatus, styles.heroStatusBlood]}>
-            DU LIEGST {behind} HINTEN.
+            YOU&apos;RE {behind} BEHIND.
           </Text>
         )}
       </View>
@@ -44,7 +44,7 @@ export default function Home() {
       <View style={styles.section}>
         <Panel pad="md">
           <View style={styles.rowBetween}>
-            <Kicker style={{ color: colors.dim }}>HEUTE</Kicker>
+            <Kicker style={{ color: colors.dim }}>TODAY</Kicker>
             <Kicker style={{ color: colors.acid }}>
               RANK #{myRank}/{ranked.length}
             </Kicker>
@@ -53,13 +53,13 @@ export default function Home() {
             <HeroNumber value={me.today} size={120} />
             <Text style={styles.countSuffix}>/ pushups</Text>
           </View>
-          <AcidButton label="+ DRÜCKEN" onPress={() => router.push('/(tabs)/log')} />
+          <AcidButton label="+ LOG PUSHUPS" onPress={() => router.push('/(tabs)/log')} />
         </Panel>
       </View>
 
       <View style={[styles.section, { marginTop: 16 }]}>
         <View style={styles.sectionHead}>
-          <Text style={styles.h2}>WER LIEFERT</Text>
+          <Text style={styles.h2}>WHO&apos;S DELIVERING</Text>
         </View>
         {ranked.map((m, i) => {
           const pct = leader.today === 0 ? 0 : m.today / leader.today;
@@ -71,7 +71,7 @@ export default function Home() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.memberName}>
                     {m.name.toUpperCase()}
-                    {m.isMe ? <Text style={{ color: colors.acid }}> · DU</Text> : null}
+                    {m.isMe ? <Text style={{ color: colors.acid }}> · YOU</Text> : null}
                   </Text>
                 </View>
                 <Text style={[styles.memberCount, isLead && { color: colors.acid }]}>
@@ -88,12 +88,12 @@ export default function Home() {
 
       <View style={[styles.section, { marginTop: 16 }]}>
         <Panel variant="acid" pad="md">
-          <Kicker style={{ marginBottom: 8 }}>// CHALLENGE / WOCHE 19</Kicker>
-          <Text style={styles.challengeHeadline}>1000 IN 7 TAGEN</Text>
+          <Kicker style={{ marginBottom: 8 }}>// CHALLENGE / WEEK 19</Kicker>
+          <Text style={styles.challengeHeadline}>1000 IN 7 DAYS</Text>
           <View style={[styles.rowBetween, { marginTop: 10 }]}>
             <Text style={styles.challengeMeta}>{weekTotal} / 1000</Text>
             <Text style={[styles.challengeMeta, { color: colors.blood }]}>
-              — {formatEuro(crewMeta.skipPotCents)} IM TOPF
+              — {formatEuro(crewMeta.skipPotCents)} IN THE POT
             </Text>
           </View>
           <View style={{ marginTop: 10 }}>

@@ -15,7 +15,7 @@ import { Kicker } from '@/components/Kicker';
 import { SectionTitle } from '@/components/SectionTitle';
 import { useAppStore } from '@/state/useAppStore';
 
-const QUICK_REPLIES = ['💪 los', 'eat sleep pushup', 'bro wie', 'topf wächst'];
+const QUICK_REPLIES = ['💪 let\'s go', 'eat sleep pushup', 'bro how', 'pot\'s growing'];
 
 export default function ChatScreen() {
   const me = useAppStore((s) => s.meId);
@@ -101,7 +101,7 @@ export default function ChatScreen() {
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="schreib was..."
+            placeholder="say something..."
             placeholderTextColor={colors.dim}
             style={styles.input}
             onSubmitEditing={send}

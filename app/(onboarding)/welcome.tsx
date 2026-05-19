@@ -17,7 +17,7 @@ export default function Welcome() {
           <AcidButton label="LET'S GO →" onPress={() => router.push('/(onboarding)/name')} />
           {/* TODO(auth): wire Apple/Google sign-in here for returning users */}
           <AcidButton
-            label="ich hab schon einen account →"
+            label="I already have an account →"
             variant="ghost"
             onPress={() => {
               /* no-op stub */
@@ -32,8 +32,8 @@ export default function Welcome() {
       <Text style={[styles.headline, styles.headlineAcid]}>PUSHUP.</Text>
       <Text style={styles.headline}>REPEAT.</Text>
       <Text style={styles.subhead}>
-        Track deine Pushups. Sieh wer in der Crew abliefert.{' '}
-        <Text style={styles.subheadStrong}>Skip einen Tag → €1 in den Topf.</Text>
+        Track your pushups. See who&apos;s delivering in the crew.{' '}
+        <Text style={styles.subheadStrong}>Skip a day → €1 in the pot.</Text>
       </Text>
     </OnboardingScreen>
   );

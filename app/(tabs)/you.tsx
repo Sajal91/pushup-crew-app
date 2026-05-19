@@ -35,7 +35,7 @@ export default function YouScreen() {
 
   return (
     <ScreenContainer>
-      <SectionTitle kicker="PROFIL">{me.name}</SectionTitle>
+      <SectionTitle kicker="PROFILE">{me.name}</SectionTitle>
 
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 8 }}>
         <Panel pad="md">
@@ -55,8 +55,8 @@ export default function YouScreen() {
 
       <View style={[styles.grid, { paddingHorizontal: spacing.screen, marginTop: 12 }]}>
         <Stat label="STREAK" value={`${me.streak}D`} />
-        <Stat label="HEUTE" value={String(me.today)} />
-        <Stat label="WOCHE" value={String(me.week)} />
+        <Stat label="TODAY" value={String(me.today)} />
+        <Stat label="WEEK" value={String(me.week)} />
         <Stat label="TOTAL" value={String(me.total)} />
       </View>
 

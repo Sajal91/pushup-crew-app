@@ -28,7 +28,7 @@ export default function GoalStep() {
       step={3}
       footer={
         <AcidButton
-          label="LOS GEHTS →"
+          label="LET'S GO →"
           onPress={() => {
             setDailyGoal(goal);
             completeOnboarding();
@@ -37,8 +37,8 @@ export default function GoalStep() {
         />
       }
     >
-      <Kicker style={styles.kicker}>// 03 / TAGESZIEL</Kicker>
-      <Text style={styles.headline}>WIE VIELE PRO TAG?</Text>
+      <Kicker style={styles.kicker}>// 03 / DAILY GOAL</Kicker>
+      <Text style={styles.headline}>HOW MANY PER DAY?</Text>
 
       <Panel pad="lg" style={styles.goalCard}>
         <HeroNumber value={goal} size={130} />
@@ -68,8 +68,8 @@ export default function GoalStep() {
         ))}
       </View>
 
-      <Text style={styles.note}>{`// ERINNERUNG: TÄGLICH 18:00`}</Text>
-      <Text style={styles.note}>{`// SKIP-TAG = €1 IN DEN CREW-TOPF`}</Text>
+      <Text style={styles.note}>{`// REMINDER: DAILY AT 18:00`}</Text>
+      <Text style={styles.note}>{`// SKIP DAY = €1 IN THE CREW POT`}</Text>
     </OnboardingScreen>
   );
 }

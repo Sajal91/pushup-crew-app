@@ -30,22 +30,22 @@ export default function CrewStep() {
       step={2}
       footer={
         <AcidButton
-          label="WEITER →"
+          label="CONTINUE →"
           disabled={!canContinue}
           onPress={() => router.push('/(onboarding)/goal')}
         />
       }
     >
-      <Kicker style={styles.kicker}>// 02 / DEINE CREW</Kicker>
-      <Text style={styles.headline}>WER LEIDET MIT DIR?</Text>
+      <Kicker style={styles.kicker}>// 02 / YOUR CREW</Kicker>
+      <Text style={styles.headline}>WHO&apos;S SUFFERING WITH YOU?</Text>
 
       <View style={{ marginTop: 24 }}>
         <SegmentedToggle
           value={mode}
           onChange={setMode}
           options={[
-            { value: 'join', label: 'BEITRETEN' },
-            { value: 'create', label: 'NEU ERSTELLEN' },
+            { value: 'join', label: 'JOIN' },
+            { value: 'create', label: 'CREATE NEW' },
           ]}
         />
       </View>
@@ -63,19 +63,19 @@ export default function CrewStep() {
           />
           {code.length >= 4 ? (
             <Panel pad="md">
-              <Text style={styles.previewName}>DIE BROS · 3 MITGLIEDER</Text>
-              <Text style={styles.previewList}>Daniel · Sascha · (du)</Text>
+              <Text style={styles.previewName}>THE BROS · 3 MEMBERS</Text>
+              <Text style={styles.previewList}>Daniel · Sascha · (you)</Text>
             </Panel>
           ) : null}
         </View>
       ) : (
         <View style={{ marginTop: 20, gap: 14 }}>
           <Panel variant="acid" pad="md" style={styles.codeBox}>
-            <Kicker style={{ marginBottom: 8 }}>// DEIN CODE</Kicker>
+            <Kicker style={{ marginBottom: 8 }}>// YOUR CODE</Kicker>
             <Text style={styles.codeBig}>{generated}</Text>
           </Panel>
           <AcidButton
-            label="📋 CODE KOPIEREN"
+            label="📋 COPY CODE"
             variant="secondary"
             onPress={() => {
               // TODO(clipboard): use expo-clipboard to copy `generated`

@@ -23,7 +23,7 @@ export default function NameStep() {
       step={1}
       footer={
         <AcidButton
-          label="WEITER →"
+          label="CONTINUE →"
           disabled={!valid}
           onPress={() => {
             setName(value.trim());
@@ -32,9 +32,9 @@ export default function NameStep() {
         />
       }
     >
-      <Kicker style={styles.kicker}>// 01 / WER BIST DU</Kicker>
-      <Text style={styles.headline}>WIE HEISST DU, BRO?</Text>
-      <Text style={styles.subhead}>So sehen dich deine Kumpels im Leaderboard und im Chat.</Text>
+      <Kicker style={styles.kicker}>// 01 / WHO ARE YOU</Kicker>
+      <Text style={styles.headline}>WHAT&apos;S YOUR NAME, BRO?</Text>
+      <Text style={styles.subhead}>This is how your crew sees you on the leaderboard and in chat.</Text>
 
       <TextInput
         style={[
@@ -50,7 +50,7 @@ export default function NameStep() {
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
       />
-      <Text style={styles.hint}>{`// ${value.length}/${MAX_NAME} ZEICHEN`}</Text>
+      <Text style={styles.hint}>{`// ${value.length}/${MAX_NAME} CHARS`}</Text>
     </OnboardingScreen>
   );
 }

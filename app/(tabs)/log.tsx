@@ -38,7 +38,7 @@ export default function LogScreen() {
     <ScreenContainer>
       <View style={styles.head}>
         <Kicker style={{ color: colors.acid, marginBottom: 6 }}>// LOG // SET</Kicker>
-        <Text style={styles.title}>WIE VIELE?</Text>
+        <Text style={styles.title}>HOW MANY?</Text>
       </View>
 
       <View style={styles.displayWrap}>
@@ -76,14 +76,14 @@ export default function LogScreen() {
       </View>
 
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 18 }}>
-        <AcidButton label="EINTRAGEN" onPress={submit} />
+        <AcidButton label="LOG IT" onPress={submit} />
       </View>
 
       <View style={[{ paddingHorizontal: spacing.screen, marginTop: 16 }]}>
         <Panel pad="md">
-          <Kicker style={{ marginBottom: 8 }}>// WIRD ZU</Kicker>
+          <Kicker style={{ marginBottom: 8 }}>// BECOMES</Kicker>
           <View style={styles.previewRow}>
-            <PreviewCell label="HEUTE" current={me.today} next={newToday} />
+            <PreviewCell label="TODAY" current={me.today} next={newToday} />
             <PreviewCell label="XP" current={me.xp} next={newXp} />
             <PreviewCell
               label="STREAK"
