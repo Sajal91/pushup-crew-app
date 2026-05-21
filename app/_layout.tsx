@@ -19,10 +19,12 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { colors } from '@/theme';
 import { useAppStore } from '@/state/useAppStore';
+import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { supabaseConfigured } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function RootLayout() {
+function RootNavigator() {
   const [antonLoaded] = useAnton({ Anton_400Regular });
   const [interLoaded] = useInter({
     Inter_400Regular,
@@ -37,6 +39,11 @@ export default function RootLayout() {
   });
 
   const fontsReady = antonLoaded && interLoaded && monoLoaded;
+  const { session, authReady } = useAuth();
+  const onboarded = useAppStore((s) => s.onboarded);
+  const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
+  const segments = useSegments();
+  const router = useRouter();
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsReady) {
@@ -44,23 +51,40 @@ export default function RootLayout() {
     }
   }, [fontsReady]);
 
-  // Onboarding gate — routes the user into (onboarding) until they finish,
-  // then sends them to (tabs).
-  const onboarded = useAppStore((s) => s.onboarded);
-  const segments = useSegments();
-  const router = useRouter();
+  const gateReady = fontsReady && authReady && onboardingHydrated;
 
   useEffect(() => {
-    if (!fontsReady) return;
+    if (!gateReady) return;
+
     const inOnboarding = segments[0] === '(onboarding)';
-    if (!onboarded && !inOnboarding) {
-      router.replace('/(onboarding)/welcome');
-    } else if (onboarded && inOnboarding) {
+    const onWelcome = segments[1] === 'welcome';
+
+    if (supabaseConfigured && !session) {
+      if (!inOnboarding || !onWelcome) {
+        router.replace('/(onboarding)/welcome');
+      }
+      return;
+    }
+
+    if (!onboarded) {
+      if (onWelcome) {
+        if (supabaseConfigured && session) {
+          router.replace('/(onboarding)/crew');
+        }
+        return;
+      }
+      if (!inOnboarding) {
+        router.replace('/(onboarding)/crew');
+      }
+      return;
+    }
+
+    if (inOnboarding) {
       router.replace('/(tabs)');
     }
-  }, [onboarded, segments, fontsReady, router]);
+  }, [gateReady, session, onboarded, segments, router]);
 
-  if (!fontsReady) return null;
+  if (!gateReady) return null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }} onLayout={onLayoutRootView}>
@@ -73,5 +97,13 @@ export default function RootLayout() {
         }}
       />
     </View>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
   );
 }

@@ -1,0 +1,6 @@
+[auth.external.google]
+enabled = true
+client_id = "397269123003-7606a6cncoq5h76vllda4tmhjcvsb8ad.apps.googleusercontent.com"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET)"
+# Required for @react-native-google-signin without custom nonce on SignIn().
+skip_nonce_check = true

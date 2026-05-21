@@ -60,7 +60,7 @@ pushup-crew-app/
 ## What's done
 
 - [x] All 5 main screens (Home / Log / Rank / Chat / You) with ACID styling
-- [x] Onboarding flow (Welcome → Name → Crew → Goal)
+- [x] Onboarding flow (Google sign-in → Crew → Goal; name from Google profile)
 - [x] Floating pill tab bar with active-pill state
 - [x] Custom theme tokens matching the design README
 - [x] Zustand store mirroring `shared.jsx` mock data + log/chat actions
@@ -76,12 +76,9 @@ pushup-crew-app/
       vars are present but no calls are made yet. Replace store actions
       (`logPushups`, `sendChat`) with Supabase inserts and subscribe to
       `pushup_logs` / `chat_messages` realtime channels.
-- [ ] **Google sign-in** — `signInWithGoogle()` in `src/lib/auth.ts`
-      needs `@react-native-google-signin/google-signin` configured with
-      iOS + Web client IDs.
-- [ ] **Persisted onboarding** — currently in-memory only. Wrap the
-      Zustand store with `persist` (using MMKV or AsyncStorage) so a
-      fresh app launch keeps the user past onboarding.
+- [x] **Google sign-in** — Supabase OAuth via `expo-auth-session` +
+      `expo-web-browser` + `expo-crypto` (works in Expo Go).
+- [x] **Persisted onboarding** — `onboarded` flag stored in AsyncStorage.
 - [ ] **Confetti + Level-Up overlay** — `logPushups` already emits a
       `levelUpEvent` timestamp; render the overlay in a top-level
       component listening to `useAppStore(s => s.levelUpEvent)`.
@@ -107,16 +104,19 @@ pushup-crew-app/
    EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi…
    ```
 
+   Add redirect URL in **Authentication → URL Configuration** (match
+   `authRedirectUri` from `src/lib/auth.ts`, typically `pushupcrew://auth/callback`).
+
 3. Open **SQL Editor** → paste the contents of
    `supabase/migrations/0001_init.sql` → run. RLS + realtime publication
    are set up by the script.
 
 4. Enable providers under **Authentication → Providers**:
    - Apple — add your Service ID + client secret (JWT)
-   - Google — add iOS + Web OAuth client IDs
+   - Google — add iOS + Web OAuth client IDs; enable **Skip nonce check**
 
-5. Restart `npx expo start --clear`; `supabaseConfigured` will now be
-   true and `auth.ts` flows light up.
+5. Restart `npx expo start --clear`; Google sign-in opens in the system browser
+   and returns via the `pushupcrew://` deep link.
 
 ## Design source
 

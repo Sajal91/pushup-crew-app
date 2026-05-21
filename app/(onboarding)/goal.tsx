@@ -25,19 +25,20 @@ export default function GoalStep() {
 
   return (
     <OnboardingScreen
-      step={3}
+      step={1}
+      totalSteps={2}
       footer={
         <AcidButton
           label="LET'S GO →"
-          onPress={() => {
+          onPress={async () => {
             setDailyGoal(goal);
-            completeOnboarding();
+            await completeOnboarding();
             router.replace('/(tabs)');
           }}
         />
       }
     >
-      <Kicker style={styles.kicker}>// 03 / DAILY GOAL</Kicker>
+      <Kicker style={styles.kicker}>// 02 / DAILY GOAL</Kicker>
       <Text style={styles.headline}>HOW MANY PER DAY?</Text>
 
       <Panel pad="lg" style={styles.goalCard}>

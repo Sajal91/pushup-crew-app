@@ -27,7 +27,8 @@ export default function CrewStep() {
 
   return (
     <OnboardingScreen
-      step={2}
+      step={0}
+      totalSteps={2}
       footer={
         <AcidButton
           label="CONTINUE →"
@@ -36,7 +37,7 @@ export default function CrewStep() {
         />
       }
     >
-      <Kicker style={styles.kicker}>// 02 / YOUR CREW</Kicker>
+      <Kicker style={styles.kicker}>// 01 / YOUR CREW</Kicker>
       <Text style={styles.headline}>WHO&apos;S SUFFERING WITH YOU?</Text>
 
       <View style={{ marginTop: 24 }}>

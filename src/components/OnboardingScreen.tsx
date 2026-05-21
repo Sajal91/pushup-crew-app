@@ -5,24 +5,28 @@ import { colors, spacing } from '@/theme';
 import { StepDots } from './StepDots';
 
 type Props = {
-  step: number;        // 0..3
+  step?: number;
   totalSteps?: number;
   children: React.ReactNode;
   footer?: React.ReactNode;
 };
 
 /**
- * Common onboarding chrome: status-area, 4-dot progress, scrollable content,
+ * Common onboarding chrome: status-area, optional step dots, scrollable content,
  * footer (CTA + optional secondary action).
  */
-export function OnboardingScreen({ step, totalSteps = 4, children, footer }: Props) {
+export function OnboardingScreen({ step, totalSteps = 2, children, footer }: Props) {
+  const showDots = step !== undefined;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* radial green glow at the top — fake with a View + opacity gradient */}
       <View pointerEvents="none" style={styles.glow} />
-      <View style={styles.dots}>
-        <StepDots total={totalSteps} active={step} />
-      </View>
+      {showDots ? (
+        <View style={styles.dots}>
+          <StepDots total={totalSteps} active={step} />
+        </View>
+      ) : null}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
