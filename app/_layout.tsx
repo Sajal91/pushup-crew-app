@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts as useAnton, Anton_400Regular } from '@expo-google-fonts/anton';
 import {
@@ -84,7 +84,28 @@ function RootNavigator() {
     }
   }, [gateReady, session, onboarded, segments, router]);
 
-  if (!gateReady) return null;
+  if (!fontsReady) return null;
+
+  if (!gateReady) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          backgroundColor: colors.bg,
+        }}
+        onLayout={onLayoutRootView}
+      >
+        <StatusBar style="light" />
+        <ActivityIndicator color={colors.acid} />
+        <Text style={{ color: colors.dim, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
+          Loading PushupCrew
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }} onLayout={onLayoutRootView}>

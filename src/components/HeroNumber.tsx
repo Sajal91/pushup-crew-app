@@ -22,13 +22,13 @@ export function HeroNumber({
       // Anton has tall ascenders that clip with line-heights below ~1.15.
       // We also add a tiny paddingTop on iOS because the OS still trims
       // the very top pixel of the glyph cap on big sizes.
-      includeFontPadding={false as any}
       style={[
         {
           fontFamily: fonts.display,
           fontSize: size,
           lineHeight: size * 1.15,
           paddingTop: size * 0.08,
+          includeFontPadding: false,
           color,
           letterSpacing: -1,
         },

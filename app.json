@@ -8,6 +8,7 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050505",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#050505",
       "resizeMode": "contain"
     },
@@ -26,6 +27,9 @@
       "userInterfaceStyle": "dark",
       "adaptiveIcon": {
         "backgroundColor": "#050505"
+      },
+      "splash": {
+        "image": "./assets/splash.png"
       }
     },
     "plugins": [
@@ -33,7 +37,8 @@
       "expo-font",
       "expo-secure-store",
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true

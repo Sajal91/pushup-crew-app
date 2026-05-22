@@ -87,30 +87,48 @@ export async function createSessionFromUrl(
 
   const params = parseOAuthParams(url, extra);
 
+  // Handle OAuth errors
   if (params.errorCode || params.error) {
-    throw new Error(params.error_description ?? params.error ?? params.errorCode ?? 'oauth-error');
+    throw new Error(
+      params.error_description ??
+      params.error ??
+      params.errorCode ??
+      'oauth-error'
+    );
   }
 
+  // PKCE / Authorization Code Flow
   if (params.code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+    const { data, error } =
+      await supabase.auth.exchangeCodeForSession(params.code);
+
     if (error) throw error;
+
     return data.session;
   }
 
+  // Implicit Flow
   const accessToken = params.access_token;
   const refreshToken = params.refresh_token;
+
   if (accessToken && refreshToken) {
     const { data, error } = await supabase.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken,
     });
+
     if (error) throw error;
+
     return data.session;
   }
 
   if (__DEV__) {
-    console.warn('[auth] Redirect without tokens (add redirect URL to Supabase):', url);
+    console.warn(
+      '[auth] Redirect without tokens. Check Supabase redirect URLs:',
+      url
+    );
   }
+
   throw new Error('No auth code or tokens in redirect URL');
 }
 

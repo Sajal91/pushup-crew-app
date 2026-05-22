@@ -7,6 +7,11 @@ import { AcidButton } from '@/components/AcidButton';
 import { Kicker } from '@/components/Kicker';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabaseConfigured } from '@/lib/supabase';
+import {
+  GoogleSignin,
+  GoogleSigninButton,
+  statusCodes,
+} from '@react-native-google-signin/google-signin'
 
 export default function Welcome() {
   const router = useRouter();
@@ -37,9 +42,14 @@ export default function Welcome() {
       footer={
         <>
           {supabaseConfigured ? (
-            <AcidButton
-              label={signingIn ? 'SIGNING IN…' : 'CONTINUE WITH GOOGLE →'}
-              disabled={signingIn}
+            // <AcidButton
+            //   label={signingIn ? 'SIGNING IN…' : 'CONTINUE WITH GOOGLE →'}
+            //   disabled={signingIn}
+            //   onPress={handleGoogleSignIn}
+            // />
+            <GoogleSigninButton
+              size={GoogleSigninButton.Size.Wide}
+              color={GoogleSigninButton.Color.Dark}
               onPress={handleGoogleSignIn}
             />
           ) : (

@@ -27,6 +27,26 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const AUTH_STARTUP_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Auth startup timed out'));
+    }, ms);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -73,14 +93,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session: initial } }) => {
-      if (!mounted) return;
-      setSession(initial);
-      if (initial) {
-        applyAuthProfile(displayNameFromSession(initial), initial.user.id);
-      }
-      setAuthReady(true);
-    });
+    withTimeout(supabase.auth.getSession(), AUTH_STARTUP_TIMEOUT_MS)
+      .then(({ data: { session: initial } }) => {
+        if (!mounted) return;
+        setSession(initial);
+        if (initial) {
+          applyAuthProfile(displayNameFromSession(initial), initial.user.id);
+        }
+      })
+      .catch((err) => {
+        if (__DEV__) {
+          console.warn('[auth] Startup session check failed:', err);
+        }
+      })
+      .finally(() => {
+        if (mounted) setAuthReady(true);
+      });
 
     const {
       data: { subscription },
