@@ -22,7 +22,7 @@ export default function Welcome() {
     setError(null);
     const result = await signInWithGoogle();
     if (result.ok) {
-      router.replace('/(onboarding)/crew');
+      router.replace('/(onboarding)/name');
       return;
     }
     if (result.reason === 'cancelled') return;
@@ -49,13 +49,13 @@ export default function Welcome() {
             // />
             <GoogleSigninButton
               size={GoogleSigninButton.Size.Wide}
-              color={GoogleSigninButton.Color.Dark}
+              color={GoogleSigninButton.Color.Light}
               onPress={handleGoogleSignIn}
             />
           ) : (
             <AcidButton
               label="CONTINUE IN DEMO MODE →"
-              onPress={() => router.replace('/(onboarding)/crew')}
+              onPress={() => router.replace('/(onboarding)/name')}
             />
           )}
           {signingIn ? (
@@ -79,7 +79,7 @@ export default function Welcome() {
         Sign in with Google to track pushups with your crew.{' '}
         <Text style={styles.subheadStrong}>Skip a day → €1 in the pot.</Text>
       </Text>
-      <Text style={styles.note}>// YOUR NAME COMES FROM YOUR GOOGLE PROFILE</Text>
+      <Text style={styles.note}>// YOU CAN CONFIRM YOUR NAME ON THE NEXT SCREEN</Text>
     </OnboardingScreen>
   );
 }

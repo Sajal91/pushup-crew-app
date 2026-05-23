@@ -43,7 +43,7 @@ export default function AuthCallback() {
         const session = await createSessionFromUrl(callbackUrl, params);
         if (session) {
           applyAuthProfile(displayNameFromSession(session), session.user.id);
-          router.replace(onboarded ? '/(tabs)' : '/(onboarding)/crew');
+          router.replace(onboarded ? '/(tabs)' : '/(onboarding)/name');
           return;
         }
       } catch (err) {

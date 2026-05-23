@@ -20,6 +20,7 @@ import {
 import { colors } from '@/theme';
 import { useAppStore } from '@/state/useAppStore';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -41,7 +42,9 @@ function RootNavigator() {
   const fontsReady = antonLoaded && interLoaded && monoLoaded;
   const { session, authReady } = useAuth();
   const onboarded = useAppStore((s) => s.onboarded);
+  const nameConfirmed = useAppStore((s) => s.nameConfirmed);
   const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
+  const crewMeta = useAppStore((s) => s.crewMeta);
   const segments = useSegments();
   const router = useRouter();
 
@@ -57,32 +60,36 @@ function RootNavigator() {
     if (!gateReady) return;
 
     const inOnboarding = segments[0] === '(onboarding)';
-    const onWelcome = segments[1] === 'welcome';
+    const currentStep = segments[1] as string | undefined;
+    const inTabs = segments[0] === '(tabs)';
+    const inAuth = segments[0] === 'auth';
 
+    // Hard guard: stale or missing auth must never reach crew/tabs.
     if (supabaseConfigured && !session) {
-      if (!inOnboarding || !onWelcome) {
-        router.replace('/(onboarding)/welcome');
+      if (!inOnboarding || currentStep !== 'welcome') {
+        router.replace(onboardingPath('welcome'));
       }
       return;
     }
 
-    if (!onboarded) {
-      if (onWelcome) {
-        if (supabaseConfigured && session) {
-          router.replace('/(onboarding)/crew');
-        }
-        return;
-      }
-      if (!inOnboarding) {
-        router.replace('/(onboarding)/crew');
+    const nextStep = resolveOnboardingStep({
+      session: Boolean(session),
+      onboarded,
+      nameConfirmed,
+      hasCrew: Boolean(crewMeta.id),
+    });
+
+    if (nextStep) {
+      if (!inOnboarding || currentStep !== nextStep) {
+        router.replace(onboardingPath(nextStep));
       }
       return;
     }
 
-    if (inOnboarding) {
+    if (!inTabs && !inAuth) {
       router.replace('/(tabs)');
     }
-  }, [gateReady, session, onboarded, segments, router]);
+  }, [gateReady, session, onboarded, nameConfirmed, crewMeta.id, segments, router]);
 
   if (!fontsReady) return null;
 

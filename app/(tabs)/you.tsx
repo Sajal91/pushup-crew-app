@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Panel } from '@/components/Panel';
 import { Kicker } from '@/components/Kicker';
 import { ProgressBar } from '@/components/ProgressBar';
 import { SectionTitle } from '@/components/SectionTitle';
+import { AcidButton } from '@/components/AcidButton';
 import { useAppStore, selectMe } from '@/state/useAppStore';
+import { useAuth } from '@/providers/AuthProvider';
 import { XP_PER_LEVEL, xpInLevel, levelFromXp, levelProgress } from '@/lib/mechanics';
 
 type Badge = {
@@ -17,8 +20,23 @@ type Badge = {
 };
 
 export default function YouScreen() {
+  const router = useRouter();
+  const { signOut } = useAuth();
   const me = useAppStore(selectMe);
+  const [signingOut, setSigningOut] = useState(false);
+
   if (!me) return null;
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/(onboarding)/welcome');
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   const lvl = levelFromXp(me.xp);
   const inLevel = xpInLevel(me.xp);
@@ -83,6 +101,15 @@ export default function YouScreen() {
             </View>
           ))}
         </View>
+      </View>
+
+      <View style={styles.signOutWrap}>
+        <AcidButton
+          label={signingOut ? 'SIGNING OUT…' : 'SIGN OUT'}
+          variant="danger"
+          disabled={signingOut}
+          onPress={handleSignOut}
+        />
       </View>
 
       <Text style={styles.signOff}>NO DAYS OFF.</Text>
@@ -177,8 +204,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: colors.dim,
   },
+  signOutWrap: {
+    marginTop: 28,
+    paddingHorizontal: spacing.screen,
+  },
   signOff: {
-    marginTop: 32,
+    marginTop: 24,
     textAlign: 'center',
     fontFamily: fonts.display,
     fontSize: 24,

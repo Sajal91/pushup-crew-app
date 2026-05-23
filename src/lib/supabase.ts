@@ -41,5 +41,4 @@ export const supabase: SupabaseClient | null = supabaseConfigured
 
 // TODO(realtime): same pattern for chat_messages -> useAppStore.chat
 
-// TODO(profiles): on first sign-in, upsert a row in `profiles` with the
-//   name + handle the user chose during onboarding.
+// Crew/profile RPCs live in src/lib/crewDb.ts (requires 0002_crew_rpcs.sql).

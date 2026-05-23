@@ -10,6 +10,8 @@ import { HeroNumber } from '@/components/HeroNumber';
 import { Chip } from '@/components/Chip';
 import { useAppStore } from '@/state/useAppStore';
 import { DEFAULT_DAILY_GOAL } from '@/lib/mechanics';
+import { updateMyDailyGoal } from '@/lib/crewDb';
+import { supabaseConfigured } from '@/lib/supabase';
 
 const PRESETS = [50, 100, 150, 200];
 
@@ -19,26 +21,41 @@ export default function GoalStep() {
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const initial = useAppStore((s) => s.dailyGoal) || DEFAULT_DAILY_GOAL;
   const [goal, setGoal] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Step buttons act as a +/- coarse slider (real slider would need @react-native-community/slider)
   const bump = (delta: number) => setGoal((g) => Math.max(20, Math.min(300, g + delta)));
 
   return (
     <OnboardingScreen
-      step={1}
-      totalSteps={2}
+      step={2}
+      totalSteps={3}
       footer={
         <AcidButton
-          label="LET'S GO →"
+          label={saving ? 'STARTING…' : "LET'S GO →"}
+          disabled={saving}
           onPress={async () => {
-            setDailyGoal(goal);
-            await completeOnboarding();
-            router.replace('/(tabs)');
+            if (saving) return;
+            setSaving(true);
+            setError(null);
+            try {
+              setDailyGoal(goal);
+              if (supabaseConfigured) {
+                await updateMyDailyGoal(goal);
+              }
+              await completeOnboarding();
+              router.replace('/(tabs)');
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Could not save goal');
+            } finally {
+              setSaving(false);
+            }
           }}
         />
       }
     >
-      <Kicker style={styles.kicker}>// 02 / DAILY GOAL</Kicker>
+      <Kicker style={styles.kicker}>// 03 / DAILY GOAL</Kicker>
       <Text style={styles.headline}>HOW MANY PER DAY?</Text>
 
       <Panel pad="lg" style={styles.goalCard}>
@@ -71,6 +88,7 @@ export default function GoalStep() {
 
       <Text style={styles.note}>{`// REMINDER: DAILY AT 18:00`}</Text>
       <Text style={styles.note}>{`// SKIP DAY = €1 IN THE CREW POT`}</Text>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </OnboardingScreen>
   );
 }
@@ -131,5 +149,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.dim,
     letterSpacing: 1.5,
+  },
+  error: {
+    marginTop: 12,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.blood,
+    lineHeight: 18,
   },
 });

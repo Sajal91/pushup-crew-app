@@ -1,8 +1,36 @@
-// Entry point — _layout.tsx handles the redirect to onboarding/tabs.
-// We just render nothing while the gate decides.
-import { View } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
 import { colors } from '@/theme';
+import { useAuth } from '@/providers/AuthProvider';
+import { useAppStore } from '@/state/useAppStore';
+import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 
+/** Cold-start entry — declarative redirect once auth + storage are ready. */
 export default function Index() {
-  return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  const { session, authReady } = useAuth();
+  const onboarded = useAppStore((s) => s.onboarded);
+  const nameConfirmed = useAppStore((s) => s.nameConfirmed);
+  const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
+  const crewMeta = useAppStore((s) => s.crewMeta);
+
+  if (!authReady || !onboardingHydrated) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.acid} />
+      </View>
+    );
+  }
+
+  const step = resolveOnboardingStep({
+    session: Boolean(session),
+    onboarded,
+    nameConfirmed,
+    hasCrew: Boolean(crewMeta.id),
+  });
+
+  if (step) {
+    return <Redirect href={onboardingPath(step)} />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }

@@ -3,7 +3,7 @@ import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import type { Session } from '@supabase/supabase-js';
-import { displayNameFromSupabaseUser } from './displayName';
+import { clampDisplayName, displayNameFromSupabaseUser } from './displayName';
 import { generateOAuthState } from './oauthCrypto';
 import { supabase, supabaseConfigured } from './supabase';
 
@@ -204,4 +204,14 @@ export async function signOut(): Promise<void> {
 
 export function displayNameFromSession(session: Session): string {
   return displayNameFromSupabaseUser(session.user);
+}
+
+/** Persist display name to Supabase user metadata (Google profile fields). */
+export async function updateUserDisplayName(raw: string): Promise<void> {
+  if (!supabase) return;
+  const name = clampDisplayName(raw);
+  const { error } = await supabase.auth.updateUser({
+    data: { full_name: name, name },
+  });
+  if (error) throw error;
 }

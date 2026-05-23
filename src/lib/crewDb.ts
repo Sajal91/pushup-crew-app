@@ -1,0 +1,307 @@
+import type { Crew, CrewMember, ChatMessage } from '@/types';
+import { XP_PER_PUSHUP, levelFromXp, nowHHMM } from '@/lib/mechanics';
+import { supabase } from '@/lib/supabase';
+
+export type CrewPreview = {
+  crewId: string;
+  name: string;
+  inviteCode: string;
+  memberCount: number;
+  memberNames: string[];
+};
+
+export type CrewSnapshot = {
+  crew: Crew;
+  dailyGoal: number;
+  members: CrewMember[];
+  chat: ChatMessage[];
+};
+
+type DbCrewPreview = {
+  crew_id: string;
+  name: string;
+  invite_code: string;
+  member_count: number;
+  members: { name: string }[];
+};
+
+type DbSnapshot = {
+  crew: {
+    id: string;
+    name: string;
+    invite_code: string;
+    skip_pot_cents: number;
+  };
+  daily_goal: number;
+  members: {
+    id: string;
+    name: string;
+    handle: string;
+    today: number;
+    week: number;
+    total: number;
+  }[];
+  chat: {
+    id: number;
+    user_id: string;
+    text: string;
+    created_at: string;
+  }[];
+};
+
+function requireClient() {
+  if (!supabase) throw new Error('Supabase is not configured');
+  return supabase;
+}
+
+const RPC_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out`));
+    }, ms);
+
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+function mapRpcError(error: { message: string; code?: string }): string {
+  const msg = error.message ?? '';
+  if (msg.includes('crew_not_found')) return 'No crew found with that code.';
+  if (msg.includes('invite_code_taken')) return 'That invite code is already taken.';
+  if (msg.includes('already_in_crew')) return 'You are already in a crew.';
+  if (msg.includes('profile_not_found')) return 'Complete your profile first.';
+  if (msg.includes('auth_user_not_ready')) return 'Still signing you in — try again in a moment.';
+  if (msg.includes('profiles_id_fkey')) return 'Account not ready yet — wait a moment and try again.';
+  if (msg.includes('invalid_invite_code')) return 'Invite code must be at least 4 characters.';
+  return msg || 'Something went wrong.';
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function mapPreview(row: DbCrewPreview): CrewPreview {
+  return {
+    crewId: row.crew_id,
+    name: row.name,
+    inviteCode: row.invite_code,
+    memberCount: row.member_count,
+    memberNames: (row.members ?? []).map((m) => m.name),
+  };
+}
+
+function formatChatTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnapshot {
+  const crew: Crew = {
+    id: snapshot.crew.id,
+    name: snapshot.crew.name,
+    inviteCode: snapshot.crew.invite_code,
+    skipPotCents: snapshot.crew.skip_pot_cents,
+  };
+
+  const members: CrewMember[] = (snapshot.members ?? []).map((m) => {
+    const xp = m.total * XP_PER_PUSHUP;
+    return {
+      id: m.id,
+      name: m.name,
+      handle: m.handle,
+      today: m.today,
+      week: m.week,
+      total: m.total,
+      xp,
+      level: levelFromXp(xp),
+      streak: m.today > 0 ? 1 : 0,
+      isMe: m.id === meId,
+    };
+  });
+
+  const chat: ChatMessage[] = (snapshot.chat ?? []).map((m) => ({
+    id: m.id,
+    who: m.user_id,
+    t: formatChatTime(m.created_at),
+    text: m.text,
+  }));
+
+  return {
+    crew,
+    dailyGoal: snapshot.daily_goal ?? 100,
+    members,
+    chat,
+  };
+}
+
+async function upsertMyProfileOnce(name: string, dailyGoal: number): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.rpc('upsert_my_profile', {
+    p_name: name,
+    p_daily_goal: dailyGoal,
+  });
+  if (error) throw new Error(mapRpcError(error));
+}
+
+/** Upsert profile after Supabase Auth user exists (retries on race / stale JWT). */
+export async function upsertMyProfile(name: string, dailyGoal = 100): Promise<void> {
+  const client = requireClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await client.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error('Not signed in');
+  }
+
+  const delays = [0, 400, 900];
+  let lastError: Error | null = null;
+
+  for (const delay of delays) {
+    if (delay > 0) await sleep(delay);
+    try {
+      await upsertMyProfileOnce(name, dailyGoal);
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const retryable =
+        lastError.message.includes('profiles_id_fkey') ||
+        lastError.message.includes('auth_user_not_ready') ||
+        lastError.message.includes('Account not ready');
+      if (!retryable) throw lastError;
+    }
+  }
+
+  throw lastError ?? new Error('Could not save profile');
+}
+
+export async function updateMyDailyGoal(dailyGoal: number): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.rpc('update_my_daily_goal', {
+    p_daily_goal: dailyGoal,
+  });
+  if (error) throw new Error(mapRpcError(error));
+}
+
+export async function previewCrewByInviteCode(code: string): Promise<CrewPreview | null> {
+  const client = requireClient();
+  const { data, error } = await client.rpc('preview_crew_by_invite_code', {
+    p_invite_code: code,
+  });
+  if (error) throw new Error(mapRpcError(error));
+  if (!data) return null;
+  return mapPreview(data as DbCrewPreview);
+}
+
+export async function createMyCrew(crewName: string, inviteCode: string): Promise<CrewSnapshot> {
+  const client = requireClient();
+  const { data, error } = await client.rpc('create_my_crew', {
+    p_crew_name: crewName,
+    p_invite_code: inviteCode,
+  });
+  if (error) throw new Error(mapRpcError(error));
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+  return mapSnapshotToState(data as DbSnapshot, user.id);
+}
+
+export async function joinCrewByInviteCode(code: string): Promise<CrewSnapshot> {
+  const client = requireClient();
+  const { data, error } = await client.rpc('join_crew_by_invite_code', {
+    p_invite_code: code,
+  });
+  if (error) throw new Error(mapRpcError(error));
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+  return mapSnapshotToState(data as DbSnapshot, user.id);
+}
+
+export async function fetchMyCrewSnapshot(userId?: string): Promise<CrewSnapshot | null> {
+  const client = requireClient();
+  const { data, error } = await withTimeout(
+    client.rpc('get_my_crew_snapshot'),
+    RPC_TIMEOUT_MS,
+    'Crew sync',
+  );
+  if (error) throw new Error(mapRpcError(error));
+  if (!data) return null;
+
+  let meId = userId;
+  if (!meId) {
+    const { data: sessionData } = await client.auth.getSession();
+    meId = sessionData.session?.user.id;
+  }
+  if (!meId) return null;
+
+  return mapSnapshotToState(data as DbSnapshot, meId);
+}
+
+export async function insertPushupLog(crewId: string, count: number): Promise<void> {
+  const client = requireClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+
+  const { error } = await client.from('pushup_logs').insert({
+    user_id: user.id,
+    crew_id: crewId,
+    count,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function insertChatMessage(crewId: string, text: string): Promise<ChatMessage> {
+  const client = requireClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+
+  const { data, error } = await client
+    .from('chat_messages')
+    .insert({
+      crew_id: crewId,
+      user_id: user.id,
+      text,
+    })
+    .select('id, user_id, text, created_at')
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: data.id,
+    who: data.user_id,
+    t: formatChatTime(data.created_at),
+    text: data.text,
+  };
+}
+
+export function normalizeInviteCode(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+/g, '');
+}
+
+export function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return `GAINS-${s}`;
+}
