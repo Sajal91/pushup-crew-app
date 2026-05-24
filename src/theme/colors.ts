@@ -16,6 +16,7 @@ export const colors = {
   acidGlowSoft: 'rgba(194,255,0,0.18)',
   bloodGlow: 'rgba(255,45,45,0.4)',
   cardShadow: 'rgba(0,0,0,0.6)',
+  dark: '#000'
 } as const;
 
 export type ColorToken = keyof typeof colors;

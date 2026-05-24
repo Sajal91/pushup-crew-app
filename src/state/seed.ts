@@ -2,9 +2,9 @@
 import type { CrewMember, ChatMessage, Crew } from '@/types';
 
 export const SEED_CREW: CrewMember[] = [
-  { id: 'nik',    name: 'Nik',    handle: '@nik',  level: 14, xp: 1820, streak: 23, today: 0,   week: 412, total: 9240,  isMe: true },
-  { id: 'daniel', name: 'Daniel', handle: '@dan',  level: 16, xp: 2410, streak: 31, today: 120, week: 540, total: 11180 },
-  { id: 'sascha', name: 'Sascha', handle: '@sash', level: 12, xp: 1420, streak: 9,  today: 60,  week: 280, total: 7550 },
+  { id: 'nik',    image: '', name: 'Nik',    handle: '@nik',  dailyGoal: 100, level: 14, xp: 1820, streak: 23, today: 0,   week: 412, total: 9240,  isMe: true },
+  { id: 'daniel', image: '', name: 'Daniel', handle: '@dan',  dailyGoal: 150, level: 16, xp: 2410, streak: 31, today: 120, week: 540, total: 11180 },
+  { id: 'sascha', image: '', name: 'Sascha', handle: '@sash', dailyGoal: 80,  level: 12, xp: 1420, streak: 9,  today: 60,  week: 280, total: 7550 },
 ];
 
 export const SEED_CHAT: ChatMessage[] = [

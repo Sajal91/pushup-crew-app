@@ -8,6 +8,7 @@ import { Kicker } from '@/components/Kicker';
 import { HeroNumber } from '@/components/HeroNumber';
 import { AcidButton } from '@/components/AcidButton';
 import { Chip } from '@/components/Chip';
+import { ProgressBar } from '@/components/ProgressBar';
 import { useAppStore, selectMe } from '@/state/useAppStore';
 import { XP_PER_PUSHUP } from '@/lib/mechanics';
 
@@ -17,13 +18,22 @@ export default function LogScreen() {
   const router = useRouter();
   const me = useAppStore(selectMe);
   const logPushups = useAppStore((s) => s.logPushups);
+  const dailyGoal = useAppStore((s) => s.dailyGoal);
   const [count, setCount] = useState(20);
 
   if (!me) return null;
 
+  const goal = me.dailyGoal ?? dailyGoal;
+  const remainingNow = Math.max(0, goal - me.today);
   const newToday = me.today + count;
+  const newRemaining = Math.max(0, goal - newToday);
+  const newGoalProgress = goal > 0 ? Math.min(newToday / goal, 1) : 0;
   const newXp = me.xp + count * XP_PER_PUSHUP;
-  const willStartStreak = me.today === 0 && count > 0;
+  const willHitGoal = me.today < goal && newToday >= goal;
+  const quickValues =
+    remainingNow > 0 && !QUICK.includes(remainingNow)
+      ? [remainingNow, ...QUICK.slice(0, 3)]
+      : QUICK;
 
   const bump = (delta: number) => setCount((c) => Math.max(0, c + delta));
 
@@ -68,9 +78,13 @@ export default function LogScreen() {
       </View>
 
       <View style={styles.quickRow}>
-        {QUICK.map((q) => (
+        {quickValues.map((q) => (
           <View key={q} style={{ flex: 1 }}>
-            <Chip label={String(q)} selected={count === q} onPress={() => setCount(q)} />
+            <Chip
+              label={q === remainingNow ? 'FINISH' : String(q)}
+              selected={count === q}
+              onPress={() => setCount(q)}
+            />
           </View>
         ))}
       </View>
@@ -82,13 +96,24 @@ export default function LogScreen() {
       <View style={[{ paddingHorizontal: spacing.screen, marginTop: 16 }]}>
         <Panel pad="md">
           <Kicker style={{ marginBottom: 8 }}>// BECOMES</Kicker>
+          <View style={styles.goalPreview}>
+            <View style={styles.goalPreviewHead}>
+              <Text style={styles.goalPreviewText}>
+                {newToday} / {goal} TODAY
+              </Text>
+              <Text style={[styles.goalPreviewText, newRemaining === 0 && { color: colors.acid }]}>
+                {newRemaining === 0 ? 'GOAL HIT' : `${newRemaining} LEFT`}
+              </Text>
+            </View>
+            <ProgressBar progress={newGoalProgress} height={6} glow={newRemaining === 0} />
+          </View>
           <View style={styles.previewRow}>
             <PreviewCell label="TODAY" current={me.today} next={newToday} />
             <PreviewCell label="XP" current={me.xp} next={newXp} />
             <PreviewCell
               label="STREAK"
               current={me.streak}
-              next={willStartStreak ? me.streak + 1 : me.streak}
+              next={willHitGoal ? me.streak + 1 : me.streak}
             />
           </View>
         </Panel>
@@ -162,6 +187,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screen,
     flexDirection: 'row',
     gap: 8,
+  },
+  goalPreview: {
+    marginBottom: 14,
+  },
+  goalPreviewHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  goalPreviewText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: colors.dim,
   },
   previewRow: {
     flexDirection: 'row',

@@ -33,6 +33,7 @@ type AppState = {
   onboardingHydrated: boolean;
   nameConfirmed: boolean;
   name: string;
+  image: string;
   dailyGoal: number;
 
   // Crew domain
@@ -48,7 +49,7 @@ type AppState = {
 
   // Actions
   hydrateOnboarding: () => Promise<void>;
-  applyAuthProfile: (name: string, userId: string, profileImage: string) => void;
+  applyAuthProfile: (name: string, userId: string, profileImage?: string) => void;
   applyAccountStatus: (status: AccountStatus) => void;
   clearAuthProfile: () => void;
   setName: (name: string) => void;
@@ -101,31 +102,41 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  applyAuthProfile: (name, userId) => {
+  applyAuthProfile: (name, userId, profileImage = '') => {
     const display = clampDisplayName(name);
-    set((state) => ({
-      name: display,
-      meId: userId,
-      crew: ensureMeInCrew(state.crew, userId, display),
-    }));
+    set((state) => {
+      const nextImage = profileImage || state.image;
+      return {
+        name: display,
+        meId: userId,
+        image: nextImage,
+        crew: ensureMeInCrew(state.crew, userId, display, nextImage, state.dailyGoal),
+      };
+    });
   },
 
   applyAccountStatus: (status) => {
     const display = clampDisplayName(status.name);
+    const shouldRestoreOnboarded = status.isReturningUser && status.nameSetupComplete && status.hasCrew;
     set((state) => ({
       name: display,
       nameConfirmed: status.nameSetupComplete,
+      onboarded: shouldRestoreOnboarded ? true : state.onboarded,
       dailyGoal: status.dailyGoal,
-      crew: ensureMeInCrew(state.crew, state.meId, display),
+      crew: ensureMeInCrew(state.crew, state.meId, display, state.image, status.dailyGoal),
     }));
     if (status.nameSetupComplete) {
       void AsyncStorage.setItem(NAME_CONFIRMED_KEY, '1');
+    }
+    if (shouldRestoreOnboarded) {
+      void AsyncStorage.setItem(ONBOARDED_KEY, '1');
     }
   },
 
   clearAuthProfile: () =>
     set({
       name: '',
+      image: '',
       meId: supabaseConfigured ? '' : 'nik',
       crew: INITIAL_CREW,
       crewMeta: INITIAL_CREW_META,
@@ -143,10 +154,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
-  setProfileImage: () => {
-
-  },
-
   confirmProfileName: async (name) => {
     const display = clampDisplayName(name);
     const dailyGoal = get().dailyGoal;
@@ -156,12 +163,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       name: display,
       nameConfirmed: true,
-      crew: ensureMeInCrew(state.crew, state.meId, display),
+      crew: ensureMeInCrew(state.crew, state.meId, display, state.image, dailyGoal),
     }));
     await AsyncStorage.setItem(NAME_CONFIRMED_KEY, '1');
   },
 
-  setDailyGoal: (goal) => set({ dailyGoal: goal }),
+  setDailyGoal: (goal) =>
+    set((state) => ({
+      dailyGoal: goal,
+      crew: state.crew.map((m) => (m.id === state.meId || m.isMe ? { ...m, dailyGoal: goal } : m)),
+    })),
 
   completeOnboarding: async () => {
     await AsyncStorage.setItem(ONBOARDED_KEY, '1');
@@ -177,6 +188,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       onboarded: false,
       nameConfirmed: false,
       name: '',
+      image: '',
       dailyGoal: DEFAULT_DAILY_GOAL,
       crew: INITIAL_CREW,
       crewMeta: INITIAL_CREW_META,
@@ -187,13 +199,39 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   applyCrewSnapshot: (snapshot) => {
     const me = snapshot.members.find((m) => m.isMe);
-    set({
-      crewMeta: snapshot.crew,
-      crew: snapshot.members,
-      chat: snapshot.chat,
-      dailyGoal: snapshot.dailyGoal,
-      crewSyncState: 'ready',
-      ...(me ? { meId: me.id, name: me.name } : {}),
+    set((state) => {
+      const currentMeImage =
+        state.image ||
+        state.crew.find((m) => m.id === state.meId || m.isMe)?.image ||
+        '';
+      const currentMeDailyGoal =
+        state.dailyGoal ||
+        state.crew.find((m) => m.id === state.meId || m.isMe)?.dailyGoal;
+      const members = snapshot.members.map((m) =>
+        m.isMe
+          ? {
+              ...m,
+              image: m.image || currentMeImage,
+              dailyGoal: m.dailyGoal ?? currentMeDailyGoal,
+            }
+          : m,
+      );
+
+      return {
+        crewMeta: snapshot.crew,
+        crew: members,
+        chat: snapshot.chat,
+        dailyGoal: snapshot.dailyGoal,
+        crewSyncState: 'ready',
+        ...(me
+          ? {
+              meId: me.id,
+              name: me.name,
+              image: me.image || currentMeImage,
+              dailyGoal: me.dailyGoal ?? currentMeDailyGoal ?? state.dailyGoal,
+            }
+          : {}),
+      };
     });
   },
 
@@ -223,7 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         const state = get();
         if (state.meId) {
-          set({ crew: ensureMeInCrew(state.crew, state.meId, state.name) });
+          set({ crew: ensureMeInCrew(state.crew, state.meId, state.name, state.image, state.dailyGoal) });
         }
       } catch (err) {
         if (__DEV__) {
@@ -231,7 +269,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         const state = get();
         if (state.meId) {
-          set({ crew: ensureMeInCrew(state.crew, state.meId, state.name) });
+          set({ crew: ensureMeInCrew(state.crew, state.meId, state.name, state.image, state.dailyGoal) });
         }
       } finally {
         set({ crewSyncState: 'ready' });
@@ -243,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   logPushups: (count) => {
-    const { crew, meId } = get();
+    const { crew, meId, dailyGoal } = get();
     const me = crew.find((m) => m.id === meId);
     if (!me) return { leveledUp: false };
 
@@ -262,7 +300,10 @@ export const useAppStore = create<AppState>((set, get) => ({
               total: m.total + count,
               xp: newXp,
               level: levelFromXp(newXp),
-              streak: m.today === 0 ? m.streak + 1 : m.streak,
+              streak:
+                m.today < (m.dailyGoal ?? dailyGoal) && m.today + count >= (m.dailyGoal ?? dailyGoal)
+                  ? m.streak + 1
+                  : m.streak,
             }
           : m,
       ),

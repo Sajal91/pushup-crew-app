@@ -38,9 +38,10 @@ type DbSnapshot = {
   daily_goal: number;
   members: {
     id: string;
-    image: string;
+    image?: string;
     name: string;
     handle: string;
+    daily_goal?: number;
     today: number;
     week: number;
     total: number;
@@ -123,8 +124,9 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
     return {
       id: m.id,
       name: m.name,
-      image: m.image,
+      image: m.image ?? '',
       handle: m.handle,
+      dailyGoal: m.daily_goal ?? 100,
       today: m.today,
       week: m.week,
       total: m.total,

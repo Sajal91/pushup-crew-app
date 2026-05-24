@@ -1,12 +1,18 @@
 import type { CrewMember } from '@/types';
 import { clampDisplayName } from '@/lib/displayName';
 
-export function placeholderMe(userId: string, name: string): CrewMember {
+export function placeholderMe(
+  userId: string,
+  name: string,
+  image = '',
+  dailyGoal?: number,
+): CrewMember {
   const display = clampDisplayName(name) || 'BRO';
   return {
     id: userId,
     name: display,
-    image: "",
+    image,
+    dailyGoal,
     handle: '@me',
     level: 0,
     xp: 0,
@@ -23,6 +29,8 @@ export function ensureMeInCrew(
   crew: CrewMember[],
   meId: string,
   name: string,
+  image?: string,
+  dailyGoal?: number,
 ): CrewMember[] {
   if (!meId) return crew;
 
@@ -30,10 +38,22 @@ export function ensureMeInCrew(
   const idx = crew.findIndex((m) => m.id === meId || m.isMe);
 
   if (idx === -1) {
-    return [...crew.map((m) => ({ ...m, isMe: false })), placeholderMe(meId, display)];
+    return [
+      ...crew.map((m) => ({ ...m, isMe: false })),
+      placeholderMe(meId, display, image ?? '', dailyGoal),
+    ];
   }
 
   return crew.map((m, i) =>
-    i === idx ? { ...m, id: meId, name: display, isMe: true } : { ...m, isMe: false },
+    i === idx
+      ? {
+          ...m,
+          id: meId,
+          name: display,
+          image: image ?? m.image,
+          dailyGoal: dailyGoal ?? m.dailyGoal,
+          isMe: true,
+        }
+      : { ...m, isMe: false },
   );
 }

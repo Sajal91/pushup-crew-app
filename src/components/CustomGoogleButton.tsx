@@ -13,7 +13,12 @@ const CustomGoogleButton: React.FC<CustomGoogleButtonProps> = ({ onPress }) => {
     const { signingIn } = useAuth();
 
     return (
-        <TouchableOpacity activeOpacity={0.7} style={styles.button} onPress={onPress}>
+        <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles.button, signingIn && styles.buttonDisabled]}
+            disabled={signingIn}
+            onPress={onPress}
+        >
             <View style={styles.content}>
                 {signingIn ? <ActivityIndicator color={colors.acid} style={{ marginTop: 8 }} /> : <View style={{display: "flex", flexDirection: "row", gap: 10, alignItems: "center"}}>
                     <Ionicons name="logo-google" size={22} color="#000" />
@@ -36,6 +41,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#ddd',
+    },
+    buttonDisabled: {
+        opacity: 0.75,
     },
 
     content: {

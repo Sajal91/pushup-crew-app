@@ -12,6 +12,7 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import {
   createSessionFromUrl,
   displayNameFromSession,
+  profileImageFromSession,
   signInWithGoogle as googleSignIn,
   signOut as authSignOut,
   urlHasAuthParams,
@@ -28,6 +29,7 @@ type SignInResult =
 type AuthContextValue = {
   session: Session | null;
   authReady: boolean;
+  accountReady: boolean;
   signingIn: boolean;
   signInWithGoogle: () => Promise<SignInResult>;
   signOut: () => Promise<void>;
@@ -58,6 +60,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
+  const [accountReady, setAccountReady] = useState(!supabaseConfigured);
   const [signingIn, setSigningIn] = useState(false);
 
   const hydrateOnboarding = useAppStore((s) => s.hydrateOnboarding);
@@ -163,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleAuthSession = useCallback(
     async (event: AuthChangeEvent, next: Session | null) => {
       if (event === 'SIGNED_OUT') {
+        setAccountReady(true);
         setSession(null);
         profileUpsertUserIdRef.current = null;
         clearAuthProfile();
@@ -174,17 +178,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const validated =
         next && supabaseConfigured && shouldValidate ? await validateSession(next) : next;
 
+      setAccountReady(!validated);
       setSession(validated);
 
       if (!validated) {
         profileUpsertUserIdRef.current = null;
         clearAuthProfile();
+        setAccountReady(true);
         return;
       }
 
       const displayName = displayNameFromSession(validated);
-      applyAuthProfile(displayName, validated.user.id, validated.user.user_metadata.picture);
-      await syncAccountAfterAuth(displayName, validated.user.id);
+      try {
+        applyAuthProfile(displayName, validated.user.id, profileImageFromSession(validated));
+        await syncAccountAfterAuth(displayName, validated.user.id);
+      } finally {
+        setAccountReady(true);
+      }
     },
     [applyAuthProfile, clearAuthProfile, syncAccountAfterAuth, validateSession],
   );
@@ -233,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) {
       setAuthReady(true);
+      setAccountReady(true);
       return;
     }
 
@@ -300,21 +311,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profileUpsertUserIdRef.current = null;
     loggedStaleSessionRef.current = false;
     authBootstrappedRef.current = false;
+    setAccountReady(false);
     await authSignOut();
     await resetOnboarding();
     clearAuthProfile();
     setSession(null);
+    setAccountReady(true);
   }, [clearAuthProfile, resetOnboarding]);
 
   const value = useMemo(
     () => ({
       session,
       authReady,
+      accountReady,
       signingIn,
       signInWithGoogle,
       signOut,
     }),
-    [session, authReady, signingIn, signInWithGoogle, signOut],
+    [session, authReady, accountReady, signingIn, signInWithGoogle, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

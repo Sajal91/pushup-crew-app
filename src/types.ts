@@ -6,6 +6,7 @@ export type CrewMember = {
   image: string;
   name: string;
   handle: string;
+  dailyGoal?: number;
   level: number;
   xp: number;
   streak: number;

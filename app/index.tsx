@@ -7,13 +7,13 @@ import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 
 /** Cold-start entry — declarative redirect once auth + storage are ready. */
 export default function Index() {
-  const { session, authReady } = useAuth();
+  const { session, authReady, accountReady } = useAuth();
   const onboarded = useAppStore((s) => s.onboarded);
   const nameConfirmed = useAppStore((s) => s.nameConfirmed);
   const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
   const crewMeta = useAppStore((s) => s.crewMeta);
 
-  if (!authReady || !onboardingHydrated) {
+  if (!authReady || !accountReady || !onboardingHydrated) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.acid} />

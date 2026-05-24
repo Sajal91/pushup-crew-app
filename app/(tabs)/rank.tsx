@@ -7,13 +7,14 @@ import { Kicker } from '@/components/Kicker';
 import { Sparkline } from '@/components/Sparkline';
 import { SegmentedToggle } from '@/components/SegmentedToggle';
 import { SectionTitle } from '@/components/SectionTitle';
+import { ProgressBar } from '@/components/ProgressBar';
 import {
   useAppStore,
   selectRankedByToday,
   selectRankedByWeek,
 } from '@/state/useAppStore';
 import { weekFor } from '@/state/seed';
-import { formatEuro } from '@/lib/mechanics';
+import { DEFAULT_DAILY_GOAL, formatEuro } from '@/lib/mechanics';
 
 type Mode = 'today' | 'week';
 
@@ -21,6 +22,7 @@ export default function RankScreen() {
   const [mode, setMode] = useState<Mode>('today');
   const ranked = useAppStore(mode === 'today' ? selectRankedByToday : selectRankedByWeek);
   const crewMeta = useAppStore((s) => s.crewMeta);
+  const dailyGoal = useAppStore((s) => s.dailyGoal);
 
   return (
     <ScreenContainer>
@@ -40,6 +42,10 @@ export default function RankScreen() {
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 14, gap: 10 }}>
         {ranked.map((m, i) => {
           const value = mode === 'today' ? m.today : m.week;
+          const memberDailyGoal = m.dailyGoal ?? (m.isMe ? dailyGoal : DEFAULT_DAILY_GOAL);
+          const target = mode === 'today' ? memberDailyGoal : memberDailyGoal * 7;
+          const progress = target > 0 ? Math.min(value / target, 1) : 0;
+          const percent = Math.round(progress * 100);
           const isMe = !!m.isMe;
           return (
             <Panel key={m.id} variant={isMe ? 'acid' : 'default'} pad="md">
@@ -60,6 +66,17 @@ export default function RankScreen() {
                   {value}
                 </Text>
               </View>
+              <View style={styles.goalRow}>
+                <Text style={styles.goalMeta}>{value} / {target}</Text>
+                <Text style={styles.goalMeta}>
+                  {percent}% {mode === 'today' ? 'DAILY TARGET' : '7-DAY TARGET'}
+                </Text>
+              </View>
+              <ProgressBar
+                progress={progress}
+                height={4}
+                color={isMe ? colors.acid : colors.acidDim}
+              />
               <View style={{ marginTop: 8 }}>
                 <Sparkline
                   data={weekFor(m.id)}
@@ -108,6 +125,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: fonts.mono,
     fontSize: 11,
+    color: colors.dim,
+    letterSpacing: 1,
+  },
+  goalRow: {
+    marginTop: 8,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  goalMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
     color: colors.dim,
     letterSpacing: 1,
   },

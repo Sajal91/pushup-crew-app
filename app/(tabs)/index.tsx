@@ -9,21 +9,27 @@ import { HeroNumber } from '@/components/HeroNumber';
 import { AcidButton } from '@/components/AcidButton';
 import { ProgressBar } from '@/components/ProgressBar';
 import { useAppStore, selectMe, selectRankedByToday } from '@/state/useAppStore';
-import { WEEKLY_TARGET, formatEuro } from '@/lib/mechanics';
+import { DEFAULT_DAILY_GOAL, formatEuro } from '@/lib/mechanics';
 
 export default function Home() {
   const router = useRouter();
   const me = useAppStore(selectMe);
   const ranked = useAppStore(selectRankedByToday);
   const crewMeta = useAppStore((s) => s.crewMeta);
+  const dailyGoal = useAppStore((s) => s.dailyGoal);
 
   if (!me) return null;
 
+  const myDailyGoal = me.dailyGoal ?? dailyGoal;
+  const goalProgress = myDailyGoal > 0 ? Math.min(me.today / myDailyGoal, 1) : 0;
+  const remaining = Math.max(0, myDailyGoal - me.today);
+  const goalMet = remaining === 0;
+  const weeklyGoal = Math.max(myDailyGoal * 7, DEFAULT_DAILY_GOAL * 7);
   const leader = ranked[0];
   const myRank = ranked.findIndex((m) => m.id === me.id) + 1;
   const leading = leader.id === me.id;
   const behind = leading ? 0 : leader.today - me.today;
-  const weekTotal = ranked.reduce((sum, m) => sum + m.week, 0);
+  const weekTotal = me.week;
 
   return (
     <ScreenContainer>
@@ -46,12 +52,21 @@ export default function Home() {
           <View style={styles.rowBetween}>
             <Kicker style={{ color: colors.dim }}>TODAY</Kicker>
             <Kicker style={{ color: colors.acid }}>
-              RANK #{myRank}/{ranked.length}
+              GOAL {myDailyGoal}
             </Kicker>
           </View>
           <View style={styles.countCenter}>
             <HeroNumber value={me.today} size={120} />
-            <Text style={styles.countSuffix}>/ pushups</Text>
+            <Text style={styles.countSuffix}>/ {myDailyGoal} PUSHUPS</Text>
+          </View>
+          <ProgressBar progress={goalProgress} height={7} glow={goalMet} />
+          <View style={[styles.rowBetween, { marginTop: 10, marginBottom: 14 }]}>
+            <Text style={[styles.goalMeta, goalMet && { color: colors.acid }]}>
+              {goalMet ? 'GOAL COMPLETE' : `${remaining} LEFT TODAY`}
+            </Text>
+            <Text style={styles.goalMeta}>
+              RANK #{myRank}/{ranked.length}
+            </Text>
           </View>
           <AcidButton label="+ LOG PUSHUPS" onPress={() => router.push('/(tabs)/log')} />
         </Panel>
@@ -62,7 +77,9 @@ export default function Home() {
           <Text style={styles.h2}>WHO&apos;S DELIVERING</Text>
         </View>
         {ranked.map((m, i) => {
-          const pct = leader.today === 0 ? 0 : m.today / leader.today;
+          const memberGoal = m.dailyGoal ?? (m.isMe ? myDailyGoal : DEFAULT_DAILY_GOAL);
+          const pct = memberGoal > 0 ? Math.min(m.today / memberGoal, 1) : 0;
+          const percent = Math.round(pct * 100);
           const isLead = i === 0;
           return (
             <Panel key={m.id} pad="md" style={{ marginTop: 8 }}>
@@ -78,6 +95,10 @@ export default function Home() {
                   {m.today}
                 </Text>
               </View>
+              <View style={[styles.rowBetween, { marginTop: 8 }]}>
+                <Text style={styles.memberGoalMeta}>{percent}% OF GOAL</Text>
+                <Text style={styles.memberGoalMeta}>{memberGoal}/DAY</Text>
+              </View>
               <View style={{ marginTop: 8 }}>
                 <ProgressBar progress={pct} height={4} color={isLead ? colors.acid : colors.acidDim} />
               </View>
@@ -88,16 +109,16 @@ export default function Home() {
 
       <View style={[styles.section, { marginTop: 16 }]}>
         <Panel variant="acid" pad="md">
-          <Kicker style={{ marginBottom: 8 }}>// CHALLENGE / WEEK 19</Kicker>
-          <Text style={styles.challengeHeadline}>1000 IN 7 DAYS</Text>
+          <Kicker style={{ marginBottom: 8 }}>// PERSONAL PACE / 7 DAYS</Kicker>
+          <Text style={styles.challengeHeadline}>{weeklyGoal} IN 7 DAYS</Text>
           <View style={[styles.rowBetween, { marginTop: 10 }]}>
-            <Text style={styles.challengeMeta}>{weekTotal} / 1000</Text>
+            <Text style={styles.challengeMeta}>{weekTotal} / {weeklyGoal}</Text>
             <Text style={[styles.challengeMeta, { color: colors.blood }]}>
               — {formatEuro(crewMeta.skipPotCents)} IN THE POT
             </Text>
           </View>
           <View style={{ marginTop: 10 }}>
-            <ProgressBar progress={weekTotal / 1000} height={6} glow />
+            <ProgressBar progress={weekTotal / weeklyGoal} height={6} glow />
           </View>
         </Panel>
       </View>
@@ -162,6 +183,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 2,
   },
+  goalMeta: {
+    fontFamily: fonts.mono,
+    color: colors.dim,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -184,6 +211,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 28,
     color: colors.text,
+  },
+  memberGoalMeta: {
+    fontFamily: fonts.mono,
+    color: colors.dim,
+    fontSize: 10,
+    letterSpacing: 1,
   },
   challengeHeadline: {
     fontFamily: fonts.display,

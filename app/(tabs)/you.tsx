@@ -13,7 +13,6 @@ import { useAuth } from '@/providers/AuthProvider';
 import { XP_PER_LEVEL, xpInLevel, levelFromXp, levelProgress } from '@/lib/mechanics';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import img from "../../assets/splash.png"
 
 type Badge = {
   id: string;
@@ -68,8 +67,12 @@ export default function YouScreen() {
   return (
     <ScreenContainer>
       <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: spacing.screen }}>
-        <View style={{ overflow: "hidden", width: 30, height: 30, borderRadius: 100, display: "flex", flexDirection: "row", alignItems: "center" }}>
-          <Image src={me.image} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <View style={styles.avatarWrap}>
+          {me.image ? (
+            <Image source={{ uri: me.image }} style={styles.avatarImage} resizeMode="cover" />
+          ) : (
+            <Ionicons name="person" size={18} color={colors.dim} />
+          )}
         </View>
         <Text style={styles.heading}>{me.name}</Text>
       </View>
@@ -248,5 +251,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     color: colors.text,
     textTransform: 'uppercase',
+  },
+  avatarWrap: {
+    overflow: 'hidden',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.panel,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
 });

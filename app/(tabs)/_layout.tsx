@@ -1,19 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { View, Pressable, Text, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, radius, glows } from '@/theme';
 import { useAppStore } from '@/state/useAppStore';
 import { supabaseConfigured } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 
 type TabId = 'index' | 'log' | 'rank' | 'chat' | 'you';
 
-const TAB_LABELS: Record<TabId, string> = {
-  index: 'HOME',
-  log: 'LOG',
-  rank: 'RANK',
-  chat: 'CHAT',
-  you: 'YOU',
+const TAB_LABELS: Record<TabId, keyof typeof Ionicons.glyphMap> = {
+  index: 'home',
+  log: 'document-text',
+  rank: 'trophy-sharp',
+  chat: 'chatbox-ellipses',
+  you: 'person',
 };
 
 const ORDER: TabId[] = ['index', 'log', 'rank', 'chat', 'you'];
@@ -39,7 +40,9 @@ function FloatingTabBar({ state, navigation }: any) {
                   pressed && { opacity: 0.85 },
                 ]}
               >
-                <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
+                <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+                  <Ionicons name={label} size={focused ? 20 : 16} color={focused ? colors.dark : colors.dim} />
+                </Text>
               </Pressable>
             );
           })}

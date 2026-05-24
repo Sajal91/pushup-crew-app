@@ -40,7 +40,7 @@ function RootNavigator() {
   });
 
   const fontsReady = antonLoaded && interLoaded && monoLoaded;
-  const { session, authReady } = useAuth();
+  const { session, authReady, accountReady } = useAuth();
   const onboarded = useAppStore((s) => s.onboarded);
   const nameConfirmed = useAppStore((s) => s.nameConfirmed);
   const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
@@ -54,7 +54,7 @@ function RootNavigator() {
     }
   }, [fontsReady]);
 
-  const gateReady = fontsReady && authReady && onboardingHydrated;
+  const gateReady = fontsReady && authReady && onboardingHydrated && accountReady;
 
   useEffect(() => {
     if (!gateReady) return;

@@ -6,11 +6,9 @@ import { colors } from '@/theme';
 import {
   authRedirectUri,
   createSessionFromUrl,
-  displayNameFromSession,
   urlHasAuthParams,
 } from '@/lib/auth';
 import { supabaseConfigured } from '@/lib/supabase';
-import { useAppStore } from '@/state/useAppStore';
 
 /**
  * OAuth return route. Google redirects to e.g.
@@ -22,8 +20,6 @@ export default function AuthCallback() {
   const url = Linking.useURL();
   const localParams = useLocalSearchParams();
   const globalParams = useGlobalSearchParams();
-  const applyAuthProfile = useAppStore((s) => s.applyAuthProfile);
-  const onboarded = useAppStore((s) => s.onboarded);
   const handled = useRef(false);
 
   useEffect(() => {
@@ -42,8 +38,7 @@ export default function AuthCallback() {
       try {
         const session = await createSessionFromUrl(callbackUrl, params);
         if (session) {
-          applyAuthProfile(displayNameFromSession(session), session.user.id, session.user.user_metadata.picture);
-          router.replace(onboarded ? '/(tabs)' : '/(onboarding)/name');
+          router.replace('/');
           return;
         }
       } catch (err) {
@@ -52,7 +47,7 @@ export default function AuthCallback() {
 
       router.replace('/(onboarding)/welcome');
     })();
-  }, [url, localParams, globalParams, applyAuthProfile, onboarded, router]);
+  }, [url, localParams, globalParams, router]);
 
   return (
     <View style={styles.wrap}>

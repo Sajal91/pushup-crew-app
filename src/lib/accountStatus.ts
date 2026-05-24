@@ -38,6 +38,10 @@ export function postSignInPath(status: AccountStatus, onboarded: boolean): strin
     return onboardingPath('name');
   }
 
+  if (status.isReturningUser && status.hasCrew) {
+    return '/(tabs)';
+  }
+
   if (onboarded && status.hasCrew) {
     return '/(tabs)';
   }

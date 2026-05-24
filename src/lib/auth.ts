@@ -206,6 +206,26 @@ export function displayNameFromSession(session: Session): string {
   return displayNameFromSupabaseUser(session.user);
 }
 
+function stringMetadataValue(meta: Record<string, unknown>, key: string): string {
+  const value = meta[key];
+  return typeof value === 'string' ? value : '';
+}
+
+export function profileImageFromSession(session: Session): string {
+  const meta = session.user.user_metadata ?? {};
+  const identityData = session.user.identities?.flatMap((identity) => {
+    const data = identity.identity_data;
+    return data ? [data] : [];
+  }) ?? [];
+  const candidates = [meta, ...identityData];
+  const keys = ['picture', 'avatar_url', 'image', 'image_url'];
+  const value = candidates
+    .flatMap((candidate) => keys.map((key) => stringMetadataValue(candidate, key)))
+    .find((candidate) => candidate.trim());
+
+  return value?.trim() ?? '';
+}
+
 /** Persist display name to Supabase user metadata (Google profile fields). */
 export async function updateUserDisplayName(raw: string): Promise<void> {
   if (!supabase) return;
