@@ -16,27 +16,25 @@ import {
   signOut as authSignOut,
   urlHasAuthParams,
 } from '@/lib/auth';
+import { postSignInPath } from '@/lib/accountStatus';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { upsertMyProfile } from '@/lib/crewDb';
+import { fetchMyAccountStatus, upsertMyProfile } from '@/lib/crewDb';
 import { useAppStore } from '@/state/useAppStore';
+
+type SignInResult =
+  | { ok: true; redirectPath: string }
+  | { ok: false; reason: string };
 
 type AuthContextValue = {
   session: Session | null;
   authReady: boolean;
   signingIn: boolean;
-  signInWithGoogle: () => Promise<{ ok: boolean; reason?: string }>;
+  signInWithGoogle: () => Promise<SignInResult>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const AUTH_STARTUP_TIMEOUT_MS = 8000;
-
-const PROFILE_UPSERT_EVENTS = new Set<AuthChangeEvent>([
-  'SIGNED_IN',
-  'INITIAL_SESSION',
-  'TOKEN_REFRESHED',
-  'USER_UPDATED',
-]);
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -64,12 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hydrateOnboarding = useAppStore((s) => s.hydrateOnboarding);
   const applyAuthProfile = useAppStore((s) => s.applyAuthProfile);
+  const applyAccountStatus = useAppStore((s) => s.applyAccountStatus);
   const clearAuthProfile = useAppStore((s) => s.clearAuthProfile);
   const syncCrewFromDb = useAppStore((s) => s.syncCrewFromDb);
   const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
 
   const profileUpsertUserIdRef = useRef<string | null>(null);
   const profileUpsertInFlightRef = useRef<Promise<void> | null>(null);
+  const validateInFlightRef = useRef<Promise<Session | null> | null>(null);
+  const loggedStaleSessionRef = useRef(false);
+  const authBootstrappedRef = useRef(false);
 
   const ensureDbProfile = useCallback(async (name: string, userId: string) => {
     if (!supabaseConfigured) return;
@@ -102,20 +104,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const validateSession = useCallback(async (next: Session | null): Promise<Session | null> => {
     if (!next || !supabase) return null;
 
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-      if (__DEV__) {
-        console.warn('[auth] Clearing invalid cached session:', error?.message);
-      }
-      await supabase.auth.signOut({ scope: 'local' });
-      return null;
+    if (validateInFlightRef.current) {
+      return validateInFlightRef.current;
     }
 
-    return next;
+    const task = (async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      console.log("user ", user)
+      if (error || !user) {
+        if (__DEV__ && !loggedStaleSessionRef.current) {
+          console.log('[auth] Cleared expired local session — sign in again.');
+          loggedStaleSessionRef.current = true;
+        }
+        await supabase.auth.signOut({ scope: 'local' });
+        return null;
+      }
+
+      loggedStaleSessionRef.current = false;
+      return next;
+    })();
+
+    validateInFlightRef.current = task;
+    try {
+      return await task;
+    } finally {
+      if (validateInFlightRef.current === task) {
+        validateInFlightRef.current = null;
+      }
+    }
   }, []);
+
+  const syncAccountAfterAuth = useCallback(
+    async (displayName: string, userId: string) => {
+      if (!supabaseConfigured) {
+        await ensureDbProfile(displayName, userId);
+        return;
+      }
+
+      try {
+        const status = await fetchMyAccountStatus();
+        applyAccountStatus(status);
+
+        if (status.hasCrew) {
+          await syncCrewFromDb();
+        } else if (status.isNewUser) {
+          await ensureDbProfile(displayName, userId);
+        }
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[auth] Could not load account status:', err);
+        }
+        await ensureDbProfile(displayName, userId);
+      }
+    },
+    [applyAccountStatus, ensureDbProfile, syncCrewFromDb],
+  );
 
   const handleAuthSession = useCallback(
     async (event: AuthChangeEvent, next: Session | null) => {
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        profileUpsertUserIdRef.current = null;
+        clearAuthProfile();
+        return;
+      }
+
       const shouldValidate =
         event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED';
       const validated =
@@ -130,13 +183,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const displayName = displayNameFromSession(validated);
-      applyAuthProfile(displayName, validated.user.id);
-
-      if (PROFILE_UPSERT_EVENTS.has(event)) {
-        void ensureDbProfile(displayName, validated.user.id);
-      }
+      applyAuthProfile(displayName, validated.user.id, validated.user.user_metadata.picture);
+      await syncAccountAfterAuth(displayName, validated.user.id);
     },
-    [applyAuthProfile, clearAuthProfile, ensureDbProfile, validateSession],
+    [applyAuthProfile, clearAuthProfile, syncAccountAfterAuth, validateSession],
+  );
+
+  const bootstrapAuth = useCallback(
+    async (event: AuthChangeEvent, next: Session | null) => {
+      if (authBootstrappedRef.current && event === 'INITIAL_SESSION') return;
+      if (event === 'INITIAL_SESSION') authBootstrappedRef.current = true;
+      await handleAuthSession(event, next);
+    },
+    [handleAuthSession],
   );
 
   const handleAuthRedirect = useCallback(
@@ -179,47 +238,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let mounted = true;
 
-    withTimeout(supabase.auth.getSession(), AUTH_STARTUP_TIMEOUT_MS)
-      .then(async ({ data: { session: initial } }) => {
-        if (!mounted) return;
-        if (initial) {
-          await handleAuthSession('INITIAL_SESSION', initial);
-        } else {
-          setSession(null);
-        }
-      })
-      .catch((err) => {
-        if (__DEV__) {
-          console.warn('[auth] Startup session check failed:', err);
-        }
-      })
-      .finally(() => {
-        if (mounted) setAuthReady(true);
-      });
+    const finishBootstrap = () => {
+      if (mounted) setAuthReady(true);
+    };
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, next) => {
-      void handleAuthSession(event, next);
+      void bootstrapAuth(event, next).finally(() => {
+        if (event === 'INITIAL_SESSION') finishBootstrap();
+      });
     });
+
+    void supabase.auth.getSession().then(({ data: { session: initial } }) => {
+      if (!authBootstrappedRef.current) {
+        void bootstrapAuth('INITIAL_SESSION', initial).finally(finishBootstrap);
+      }
+    });
+
+    const fallback = setTimeout(finishBootstrap, AUTH_STARTUP_TIMEOUT_MS);
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      clearTimeout(fallback);
     };
-  }, [handleAuthSession]);
+  }, [bootstrapAuth]);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (): Promise<SignInResult> => {
     setSigningIn(true);
     try {
       const result = await googleSignIn();
-      if (result.ok) {
-        profileUpsertUserIdRef.current = null;
-        await handleAuthSession('SIGNED_IN', result.session);
+      if (!result.ok) {
+        return { ok: false, reason: result.reason };
       }
-      return result.ok
-        ? { ok: true as const }
-        : { ok: false as const, reason: result.reason };
+
+      profileUpsertUserIdRef.current = null;
+      await handleAuthSession('SIGNED_IN', result.session);
+
+      const status = await fetchMyAccountStatus();
+      const redirectPath = postSignInPath(status, useAppStore.getState().onboarded);
+
+      if (__DEV__) {
+        console.log(
+          `[auth] ${status.isReturningUser ? 'Returning' : 'New'} user (${status.email ?? 'no email'}) → ${redirectPath}`,
+        );
+      }
+
+      return { ok: true, redirectPath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Sign-in failed';
+      return { ok: false, reason: message };
     } finally {
       setSigningIn(false);
     }
@@ -229,6 +298,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     profileUpsertUserIdRef.current = null;
+    loggedStaleSessionRef.current = false;
+    authBootstrappedRef.current = false;
     await authSignOut();
     await resetOnboarding();
     clearAuthProfile();

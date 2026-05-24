@@ -20,6 +20,7 @@ import {
   type CrewPreview,
 } from '@/lib/crewDb';
 import { clampDisplayName } from '@/lib/displayName';
+import * as Clipboard from 'expo-clipboard';
 
 type Mode = 'join' | 'create';
 
@@ -116,8 +117,9 @@ export default function CrewStep() {
     }
   };
 
-  const copyCode = () => {
-    // TODO(clipboard): add expo-clipboard to copy `generated`
+  const copyCode = async () => {
+    await Clipboard.setStringAsync(normalizedCode);
+    alert('Copied!');
   };
 
   const previewNames = preview?.memberNames ?? [];

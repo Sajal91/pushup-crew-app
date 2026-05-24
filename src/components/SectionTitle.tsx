@@ -15,7 +15,7 @@ type Props = {
 export function SectionTitle({ kicker, children }: Props) {
   return (
     <View style={styles.wrap}>
-      {kicker ? <Kicker style={{ marginBottom: 6 }}>{`// ${kicker}`}</Kicker> : null}
+      {kicker ? <Kicker style={{ marginBottom: 6 }}>{`${kicker}`}</Kicker> : null}
       <Text style={styles.heading}>{children}</Text>
     </View>
   );

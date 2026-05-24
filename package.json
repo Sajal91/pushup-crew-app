@@ -18,8 +18,10 @@
     "@react-native-google-signin/google-signin": "^16.1.2",
     "@supabase/supabase-js": "2.45.0",
     "@types/react": "~19.1.10",
+    "expo": "~54.0.34",
     "expo-apple-authentication": "~8.0.0",
     "expo-auth-session": "~7.0.11",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.0",
     "expo-crypto": "~15.0.9",
     "expo-dev-client": "~6.0.21",
@@ -42,8 +44,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.21.0",
     "typescript": "~5.9.2",
-    "zustand": "^4.5.0",
-    "expo": "~54.0.34"
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",

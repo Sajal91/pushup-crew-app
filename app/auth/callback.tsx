@@ -42,7 +42,7 @@ export default function AuthCallback() {
       try {
         const session = await createSessionFromUrl(callbackUrl, params);
         if (session) {
-          applyAuthProfile(displayNameFromSession(session), session.user.id);
+          applyAuthProfile(displayNameFromSession(session), session.user.id, session.user.user_metadata.picture);
           router.replace(onboarded ? '/(tabs)' : '/(onboarding)/name');
           return;
         }

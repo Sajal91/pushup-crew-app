@@ -1,6 +1,9 @@
 import type { Crew, CrewMember, ChatMessage } from '@/types';
+import { mapAccountStatus, type AccountStatus } from '@/lib/accountStatus';
 import { XP_PER_PUSHUP, levelFromXp, nowHHMM } from '@/lib/mechanics';
 import { supabase } from '@/lib/supabase';
+
+export type { AccountStatus };
 
 export type CrewPreview = {
   crewId: string;
@@ -35,6 +38,7 @@ type DbSnapshot = {
   daily_goal: number;
   members: {
     id: string;
+    image: string;
     name: string;
     handle: string;
     today: number;
@@ -119,6 +123,7 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
     return {
       id: m.id,
       name: m.name,
+      image: m.image,
       handle: m.handle,
       today: m.today,
       week: m.week,
@@ -186,6 +191,36 @@ export async function upsertMyProfile(name: string, dailyGoal = 100): Promise<vo
   }
 
   throw lastError ?? new Error('Could not save profile');
+}
+
+export async function fetchMyAccountStatus(): Promise<AccountStatus> {
+  const client = requireClient();
+  const { data, error } = await withTimeout(
+    client.rpc('get_my_account_status'),
+    RPC_TIMEOUT_MS,
+    'Account status',
+  );
+  if (error) throw new Error(mapRpcError(error));
+  return mapAccountStatus(
+    data as {
+      email: string | null;
+      is_returning_user: boolean;
+      is_new_user: boolean;
+      name_setup_complete: boolean;
+      has_crew: boolean;
+      name: string;
+      daily_goal: number;
+    },
+  );
+}
+
+export async function confirmMyProfileName(name: string, dailyGoal = 100): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.rpc('confirm_my_profile_name', {
+    p_name: name,
+    p_daily_goal: dailyGoal,
+  });
+  if (error) throw new Error(mapRpcError(error));
 }
 
 export async function updateMyDailyGoal(dailyGoal: number): Promise<void> {

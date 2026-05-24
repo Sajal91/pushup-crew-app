@@ -8,12 +8,15 @@ import { Kicker } from '@/components/Kicker';
 import { useAppStore } from '@/state/useAppStore';
 import { clampDisplayName } from '@/lib/displayName';
 import { updateUserDisplayName } from '@/lib/auth';
-import { upsertMyProfile } from '@/lib/crewDb';
+import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
 
 export default function NameStep() {
   const router = useRouter();
   const profileName = useAppStore((s) => s.name);
+  const nameConfirmed = useAppStore((s) => s.nameConfirmed);
+  const onboarded = useAppStore((s) => s.onboarded);
+  const hasCrew = useAppStore((s) => Boolean(s.crewMeta.id));
   const confirmProfileName = useAppStore((s) => s.confirmProfileName);
   const [draft, setDraft] = useState(profileName);
   const [saving, setSaving] = useState(false);
@@ -22,6 +25,18 @@ export default function NameStep() {
   useEffect(() => {
     if (profileName) setDraft(profileName);
   }, [profileName]);
+
+  // Returning users skip name setup (already in database).
+  useEffect(() => {
+    if (!nameConfirmed) return;
+    const next = resolveOnboardingStep({
+      session: true,
+      onboarded,
+      nameConfirmed: true,
+      hasCrew,
+    });
+    router.replace(next ? onboardingPath(next) : '/(tabs)');
+  }, [nameConfirmed, onboarded, hasCrew, router]);
 
   const trimmed = draft.trim();
   const canContinue = trimmed.length > 0;
@@ -34,7 +49,6 @@ export default function NameStep() {
       const display = clampDisplayName(draft);
       if (supabaseConfigured) {
         await updateUserDisplayName(display);
-        await upsertMyProfile(display);
       }
       await confirmProfileName(display);
       router.push('/(onboarding)/crew');

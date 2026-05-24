@@ -6,6 +6,7 @@ export function placeholderMe(userId: string, name: string): CrewMember {
   return {
     id: userId,
     name: display,
+    image: "",
     handle: '@me',
     level: 0,
     xp: 0,

@@ -3,6 +3,7 @@
 
 export type CrewMember = {
   id: string;
+  image: string;
   name: string;
   handle: string;
   level: number;

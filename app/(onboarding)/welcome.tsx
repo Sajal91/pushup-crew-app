@@ -7,22 +7,25 @@ import { AcidButton } from '@/components/AcidButton';
 import { Kicker } from '@/components/Kicker';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabaseConfigured } from '@/lib/supabase';
-import {
-  GoogleSignin,
-  GoogleSigninButton,
-  statusCodes,
-} from '@react-native-google-signin/google-signin'
+import CustomGoogleButton from '@/components/CustomGoogleButton';
 
 export default function Welcome() {
   const router = useRouter();
-  const { signInWithGoogle, signingIn } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     setError(null);
     const result = await signInWithGoogle();
     if (result.ok) {
-      router.replace('/(onboarding)/name');
+      router.replace(
+        result.redirectPath as
+          | '/(tabs)'
+          | '/(onboarding)/welcome'
+          | '/(onboarding)/name'
+          | '/(onboarding)/crew'
+          | '/(onboarding)/goal',
+      );
       return;
     }
     if (result.reason === 'cancelled') return;
@@ -42,25 +45,22 @@ export default function Welcome() {
       footer={
         <>
           {supabaseConfigured ? (
-            // <AcidButton
-            //   label={signingIn ? 'SIGNING IN…' : 'CONTINUE WITH GOOGLE →'}
-            //   disabled={signingIn}
+            // <GoogleSigninButton
+            //   aria-label='Continue with Google'
+            //   style={{ width: "100%", height: 70 }}
+            //   color={GoogleSigninButton.Color.Light}
             //   onPress={handleGoogleSignIn}
             // />
-            <GoogleSigninButton
-              size={GoogleSigninButton.Size.Wide}
-              color={GoogleSigninButton.Color.Light}
-              onPress={handleGoogleSignIn}
-            />
+            <CustomGoogleButton onPress={handleGoogleSignIn} />
           ) : (
             <AcidButton
               label="CONTINUE IN DEMO MODE →"
               onPress={() => router.replace('/(onboarding)/name')}
             />
           )}
-          {signingIn ? (
+          {/* {signingIn ? (
             <ActivityIndicator color={colors.acid} style={{ marginTop: 8 }} />
-          ) : null}
+          ) : null} */}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {!supabaseConfigured ? (
             <Text style={styles.hint}>
@@ -75,11 +75,7 @@ export default function Welcome() {
       <Text style={styles.headline}>SLEEP.</Text>
       <Text style={[styles.headline, styles.headlineAcid]}>PUSHUP.</Text>
       <Text style={styles.headline}>REPEAT.</Text>
-      <Text style={styles.subhead}>
-        Sign in with Google to track pushups with your crew.{' '}
-        <Text style={styles.subheadStrong}>Skip a day → €1 in the pot.</Text>
-      </Text>
-      <Text style={styles.note}>// YOU CAN CONFIRM YOUR NAME ON THE NEXT SCREEN</Text>
+      <Text style={styles.subheadStrong}>Skip a day → €1 in the pot.</Text>
     </OnboardingScreen>
   );
 }
@@ -105,7 +101,8 @@ const styles = StyleSheet.create({
     color: colors.dim,
   },
   subheadStrong: {
-    color: colors.text,
+    color: colors.blood,
+    paddingLeft: 5,
     fontFamily: fonts.bodySemi,
   },
   note: {

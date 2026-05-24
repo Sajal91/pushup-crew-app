@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -8,9 +8,12 @@ import { Kicker } from '@/components/Kicker';
 import { ProgressBar } from '@/components/ProgressBar';
 import { SectionTitle } from '@/components/SectionTitle';
 import { AcidButton } from '@/components/AcidButton';
-import { useAppStore, selectMe } from '@/state/useAppStore';
+import { useAppStore, selectMe, getCrewInviteCode } from '@/state/useAppStore';
 import { useAuth } from '@/providers/AuthProvider';
 import { XP_PER_LEVEL, xpInLevel, levelFromXp, levelProgress } from '@/lib/mechanics';
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import img from "../../assets/splash.png"
 
 type Badge = {
   id: string;
@@ -23,7 +26,9 @@ export default function YouScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const me = useAppStore(selectMe);
+  const inviteCode = useAppStore(getCrewInviteCode);
   const [signingOut, setSigningOut] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
   if (!me) return null;
 
@@ -43,17 +48,36 @@ export default function YouScreen() {
   const progress = levelProgress(me.xp);
 
   const badges: Badge[] = [
-    { id: '7d',   label: '7-DAY',   caption: 'STREAK',   unlocked: me.streak >= 7 },
-    { id: '14d',  label: '14-DAY',  caption: 'STREAK',   unlocked: me.streak >= 14 },
-    { id: '500',  label: '500',     caption: 'LIFETIME', unlocked: me.total >= 500 },
-    { id: '5k',   label: '5K',      caption: 'LIFETIME', unlocked: me.total >= 5000 },
-    { id: '10k',  label: '10K',     caption: 'LIFETIME', unlocked: me.total >= 10000 },
-    { id: 'top',  label: 'TOPDOG',  caption: 'WEEK 1ST', unlocked: false },
+    { id: '7d', label: '7-DAY', caption: 'STREAK', unlocked: me.streak >= 7 },
+    { id: '14d', label: '14-DAY', caption: 'STREAK', unlocked: me.streak >= 14 },
+    { id: '500', label: '500', caption: 'LIFETIME', unlocked: me.total >= 500 },
+    { id: '5k', label: '5K', caption: 'LIFETIME', unlocked: me.total >= 5000 },
+    { id: '10k', label: '10K', caption: 'LIFETIME', unlocked: me.total >= 10000 },
+    { id: 'top', label: 'TOPDOG', caption: 'WEEK 1ST', unlocked: false },
   ];
+
+  const handleCopyInvite = async () => {
+    setIsCopying(true)
+    await Clipboard.setStringAsync(inviteCode);
+    alert('Copied!');
+    setTimeout(() => {
+      setIsCopying(false)
+    }, 2000);
+  }
 
   return (
     <ScreenContainer>
-      <SectionTitle kicker="PROFILE">{me.name}</SectionTitle>
+      <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: spacing.screen }}>
+        <View style={{ overflow: "hidden", width: 30, height: 30, borderRadius: 100, display: "flex", flexDirection: "row", alignItems: "center" }}>
+          <Image src={me.image} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </View>
+        <Text style={styles.heading}>{me.name}</Text>
+      </View>
+      <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, paddingLeft: 20 }}>
+        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 20 }}>Invite Code</Text>
+        <Text style={{ color: colors.acid, fontWeight: "700", fontSize: 20, marginLeft: 10 }}>{inviteCode}</Text>
+        <Ionicons name={isCopying ? "copy" : "copy-outline"} onPress={handleCopyInvite} size={18} color="#fff" />
+      </View>
 
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 8 }}>
         <Panel pad="md">
@@ -215,5 +239,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.dim,
     letterSpacing: 2,
+  },
+  heading: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    paddingTop: 4,
+    letterSpacing: 0.5,
+    color: colors.text,
+    textTransform: 'uppercase',
   },
 });

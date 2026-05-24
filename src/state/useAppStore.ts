@@ -7,9 +7,11 @@ import { XP_PER_PUSHUP, nowHHMM, DEFAULT_DAILY_GOAL, levelFromXp } from '@/lib/m
 import { clampDisplayName } from '@/lib/displayName';
 import { supabaseConfigured } from '@/lib/supabase';
 import {
+  confirmMyProfileName,
   fetchMyCrewSnapshot,
   insertChatMessage,
   insertPushupLog,
+  type AccountStatus,
   type CrewSnapshot,
 } from '@/lib/crewDb';
 import { ensureMeInCrew } from '@/state/crewHelpers';
@@ -46,7 +48,8 @@ type AppState = {
 
   // Actions
   hydrateOnboarding: () => Promise<void>;
-  applyAuthProfile: (name: string, userId: string) => void;
+  applyAuthProfile: (name: string, userId: string, profileImage: string) => void;
+  applyAccountStatus: (status: AccountStatus) => void;
   clearAuthProfile: () => void;
   setName: (name: string) => void;
   confirmProfileName: (name: string) => Promise<void>;
@@ -71,6 +74,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   onboardingHydrated: false,
   nameConfirmed: false,
   name: '',
+  image: '',
   dailyGoal: DEFAULT_DAILY_GOAL,
 
   crew: INITIAL_CREW,
@@ -106,6 +110,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
+  applyAccountStatus: (status) => {
+    const display = clampDisplayName(status.name);
+    set((state) => ({
+      name: display,
+      nameConfirmed: status.nameSetupComplete,
+      dailyGoal: status.dailyGoal,
+      crew: ensureMeInCrew(state.crew, state.meId, display),
+    }));
+    if (status.nameSetupComplete) {
+      void AsyncStorage.setItem(NAME_CONFIRMED_KEY, '1');
+    }
+  },
+
   clearAuthProfile: () =>
     set({
       name: '',
@@ -126,8 +143,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
+  setProfileImage: () => {
+
+  },
+
   confirmProfileName: async (name) => {
     const display = clampDisplayName(name);
+    const dailyGoal = get().dailyGoal;
+    if (supabaseConfigured) {
+      await confirmMyProfileName(display, dailyGoal);
+    }
     set((state) => ({
       name: display,
       nameConfirmed: true,
@@ -285,11 +310,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 }));
 
 // Selectors used across screens
-export const selectMe = (s: AppState): CrewMember | undefined =>
-  s.crew.find((m) => m.id === s.meId) ?? s.crew.find((m) => m.isMe);
+export const selectMe = (s: AppState): CrewMember | undefined => s.crew.find((m) => m.id === s.meId) ?? s.crew.find((m) => m.isMe);
 
-export const selectRankedByToday = (s: AppState): CrewMember[] =>
-  [...s.crew].sort((a, b) => b.today - a.today || b.total - a.total);
+export const getCrewInviteCode = (s: AppState): string => s.crewMeta.inviteCode;
 
-export const selectRankedByWeek = (s: AppState): CrewMember[] =>
-  [...s.crew].sort((a, b) => b.week - a.week || b.total - a.total);
+export const selectRankedByToday = (s: AppState): CrewMember[] => [...s.crew].sort((a, b) => b.today - a.today || b.total - a.total);
+
+export const selectRankedByWeek = (s: AppState): CrewMember[] => [...s.crew].sort((a, b) => b.week - a.week || b.total - a.total);
