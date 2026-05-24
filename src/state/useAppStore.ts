@@ -60,6 +60,7 @@ type AppState = {
   applyCrewSnapshot: (snapshot: CrewSnapshot) => void;
   syncCrewFromDb: () => Promise<void>;
   logPushups: (count: number) => { leveledUp: boolean };
+  applyRemoteChatMessage: (message: ChatMessage, optimisticId?: string | number) => void;
   sendChat: (text: string) => void;
   setActiveScreen: (s: AppScreen) => void;
   consumeLevelUp: () => void;
@@ -319,6 +320,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     return { leveledUp };
   },
 
+  applyRemoteChatMessage: (message, optimisticId) =>
+    set((state) => {
+      const withoutOptimistic =
+        optimisticId === undefined
+          ? state.chat
+          : state.chat.filter((m) => m.id !== optimisticId);
+      const exists = withoutOptimistic.some((m) => m.id === message.id);
+      if (exists) return { chat: withoutOptimistic };
+      return { chat: [...withoutOptimistic, message] };
+    }),
+
   sendChat: (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -336,12 +348,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (supabaseConfigured && crewMeta.id) {
       void insertChatMessage(crewMeta.id, trimmed)
         .then((saved) => {
-          set((state) => ({
-            chat: state.chat.map((m) => (m.id === optimistic.id ? saved : m)),
-          }));
+          get().applyRemoteChatMessage(saved, optimistic.id);
         })
         .catch((err) => {
           if (__DEV__) console.warn('[crew] chat insert failed:', err);
+          set((state) => ({ chat: state.chat.filter((m) => m.id !== optimistic.id) }));
         });
     }
   },

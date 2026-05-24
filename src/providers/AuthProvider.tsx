@@ -19,7 +19,12 @@ import {
 } from '@/lib/auth';
 import { postSignInPath } from '@/lib/accountStatus';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { fetchMyAccountStatus, upsertMyProfile } from '@/lib/crewDb';
+import {
+  fetchMyAccountStatus,
+  mapDbChatMessage,
+  upsertMyProfile,
+  type DbChatMessage,
+} from '@/lib/crewDb';
 import { useAppStore } from '@/state/useAppStore';
 
 type SignInResult =
@@ -68,7 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const applyAccountStatus = useAppStore((s) => s.applyAccountStatus);
   const clearAuthProfile = useAppStore((s) => s.clearAuthProfile);
   const syncCrewFromDb = useAppStore((s) => s.syncCrewFromDb);
+  const applyRemoteChatMessage = useAppStore((s) => s.applyRemoteChatMessage);
   const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
+  const crewId = useAppStore((s) => s.crewMeta.id);
 
   const profileUpsertUserIdRef = useRef<string | null>(null);
   const profileUpsertInFlightRef = useRef<Promise<void> | null>(null);
@@ -233,6 +240,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabaseConfigured || !session || !onboardingHydrated) return;
     void syncCrewFromDb();
   }, [session, onboardingHydrated, syncCrewFromDb]);
+
+  useEffect(() => {
+    if (!supabaseConfigured || !supabase || !session || !crewId) return;
+
+    const client = supabase;
+    const channel = client
+      .channel(`crew-chat:${crewId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `crew_id=eq.${crewId}`,
+        },
+        (payload) => {
+          applyRemoteChatMessage(mapDbChatMessage(payload.new as DbChatMessage));
+        },
+      )
+      .subscribe((status) => {
+        if (__DEV__ && status === 'CHANNEL_ERROR') {
+          console.warn('[chat] Realtime channel error');
+        }
+      });
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [applyRemoteChatMessage, crewId, session]);
 
   useEffect(() => {
     if (incomingUrl) {

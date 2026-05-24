@@ -54,6 +54,13 @@ type DbSnapshot = {
   }[];
 };
 
+export type DbChatMessage = {
+  id: number;
+  user_id: string;
+  text: string;
+  created_at: string;
+};
+
 function requireClient() {
   if (!supabase) throw new Error('Supabase is not configured');
   return supabase;
@@ -106,9 +113,18 @@ function mapPreview(row: DbCrewPreview): CrewPreview {
   };
 }
 
-function formatChatTime(iso: string): string {
+export function formatChatTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export function mapDbChatMessage(row: DbChatMessage): ChatMessage {
+  return {
+    id: row.id,
+    who: row.user_id,
+    t: formatChatTime(row.created_at),
+    text: row.text,
+  };
 }
 
 export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnapshot {
@@ -137,12 +153,7 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
     };
   });
 
-  const chat: ChatMessage[] = (snapshot.chat ?? []).map((m) => ({
-    id: m.id,
-    who: m.user_id,
-    t: formatChatTime(m.created_at),
-    text: m.text,
-  }));
+  const chat: ChatMessage[] = (snapshot.chat ?? []).map(mapDbChatMessage);
 
   return {
     crew,
@@ -325,10 +336,7 @@ export async function insertChatMessage(crewId: string, text: string): Promise<C
   if (error) throw new Error(error.message);
 
   return {
-    id: data.id,
-    who: data.user_id,
-    t: formatChatTime(data.created_at),
-    text: data.text,
+    ...mapDbChatMessage(data),
   };
 }
 

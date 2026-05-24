@@ -1,5 +1,5 @@
-import React, { ReactNode, useEffect } from 'react';
-import { View, Pressable, Text, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Pressable, Text, StyleSheet, Platform, Keyboard } from 'react-native';
 import { Tabs } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, radius, glows } from '@/theme';
@@ -10,16 +10,32 @@ import { Ionicons } from '@expo/vector-icons';
 type TabId = 'index' | 'log' | 'rank' | 'chat' | 'you';
 
 const TAB_LABELS: Record<TabId, keyof typeof Ionicons.glyphMap> = {
-  index: 'home',
   log: 'document-text',
   rank: 'trophy-sharp',
+  index: 'home',
   chat: 'chatbox-ellipses',
   you: 'person',
 };
 
-const ORDER: TabId[] = ['index', 'log', 'rank', 'chat', 'you'];
+const ORDER: TabId[] = ['log', 'rank', 'index', 'chat', 'you'];
 
 function FloatingTabBar({ state, navigation }: any) {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  if (keyboardVisible) return null;
+
   return (
     <SafeAreaView edges={['bottom']} style={styles.safe}>
       <View style={styles.bar}>
@@ -92,7 +108,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.panel,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "#fff",
     padding: 6,
     flexDirection: 'row',
     gap: 4,

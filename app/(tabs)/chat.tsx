@@ -6,18 +6,22 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, glows, spacing } from '@/theme';
 import { Kicker } from '@/components/Kicker';
 import { SectionTitle } from '@/components/SectionTitle';
 import { useAppStore } from '@/state/useAppStore';
+import type { ChatMessage } from '@/types';
 
 const QUICK_REPLIES = ['💪 let\'s go', 'eat sleep pushup', 'bro how', 'pot\'s growing'];
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
   const me = useAppStore((s) => s.meId);
   const crew = useAppStore((s) => s.crew);
   const chat = useAppStore((s) => s.chat);
@@ -25,11 +29,24 @@ export default function ChatScreen() {
   const crewMeta = useAppStore((s) => s.crewMeta);
 
   const [draft, setDraft] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const listRef = useRef<FlatList<ChatMessage>>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollToEnd({ animated: false });
+    listRef.current?.scrollToEnd({ animated: false });
   }, [chat.length]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const send = () => {
     if (!draft.trim()) return;
@@ -47,19 +64,20 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <ScrollView
-          ref={scrollRef}
+        <FlatList
+          ref={listRef}
+          data={chat}
+          keyExtractor={(item) => String(item.id)}
           style={{ flex: 1 }}
           contentContainerStyle={styles.messages}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-        >
-          {chat.map((m) => {
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          renderItem={({ item: m }) => {
             if (m.system) {
               return (
-                <View key={m.id} style={styles.systemPillWrap}>
+                <View style={styles.systemPillWrap}>
                   <Text style={styles.systemPill}>// {m.text}</Text>
                 </View>
               );
@@ -67,7 +85,6 @@ export default function ChatScreen() {
             const mine = m.who === me;
             return (
               <View
-                key={m.id}
                 style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowTheirs]}
               >
                 {!mine ? (
@@ -81,8 +98,8 @@ export default function ChatScreen() {
                 {mine ? <Text style={[styles.meta, styles.metaMine]}>{m.t}</Text> : null}
               </View>
             );
-          })}
-        </ScrollView>
+          }}
+        />
 
         <ScrollView
           horizontal
@@ -97,7 +114,14 @@ export default function ChatScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.composer}>
+        <View
+          style={[
+            styles.composer,
+            {
+              paddingBottom: keyboardVisible ? Math.max(insets.bottom, 12) : 96,
+            },
+          ]}
+        >
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -213,7 +237,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.screen,
-    paddingBottom: 96, // clear tab bar
+    paddingTop: 6,
     gap: 10,
   },
   input: {
