@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CrewMember, ChatMessage, Crew, AppScreen } from '@/types';
+import type { AppScreen, ChatMessage, Crew, CrewMember, DailyStat } from '@/types';
 import { SEED_CREW, SEED_CHAT, SEED_CREW_META } from './seed';
 import { EMPTY_CREW, EMPTY_CREW_META, EMPTY_CHAT } from './emptyCrew';
 import { XP_PER_PUSHUP, nowHHMM, DEFAULT_DAILY_GOAL, levelFromXp } from '@/lib/mechanics';
@@ -26,6 +26,7 @@ const ONBOARDED_KEY = '@pushupcrew/onboarded';
 const NAME_CONFIRMED_KEY = '@pushupcrew/name_confirmed';
 
 let crewSyncInFlight: Promise<void> | null = null;
+const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 
 type AppState = {
   // Onboarding / profile
@@ -69,6 +70,39 @@ type AppState = {
 function withMeName(crew: CrewMember[], name: string): CrewMember[] {
   const display = clampDisplayName(name);
   return crew.map((m) => (m.isMe ? { ...m, name: display, id: m.id } : m));
+}
+
+function utcIsoDay(offsetDays = 0): string {
+  const date = new Date(Date.now() + offsetDays * UTC_DAY_MS);
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function emptySevenDayStats(): DailyStat[] {
+  return Array.from({ length: 7 }, (_, index) => ({
+    day: utcIsoDay(index - 6),
+    count: 0,
+  }));
+}
+
+function addToTodayStats(stats: DailyStat[] | undefined, count: number): DailyStat[] {
+  const today = utcIsoDay();
+  let foundToday = false;
+  const source = stats?.length ? stats : emptySevenDayStats();
+  const next = source.map((stat) => {
+    if (stat.day !== today) return stat;
+    foundToday = true;
+    return { ...stat, count: stat.count + count };
+  });
+
+  if (!foundToday) {
+    next.push({ day: today, count });
+  }
+
+  return next.sort((a, b) => a.day.localeCompare(b.day)).slice(-7);
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -299,6 +333,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               today: m.today + count,
               week: m.week + count,
               total: m.total + count,
+              dailyStats: addToTodayStats(m.dailyStats, count),
               xp: newXp,
               level: levelFromXp(newXp),
               streak:
@@ -312,9 +347,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
 
     if (supabaseConfigured && crewId) {
-      void insertPushupLog(crewId, count).catch((err) => {
-        if (__DEV__) console.warn('[crew] pushup log insert failed:', err);
-      });
+      void insertPushupLog(crewId, count)
+        .then(() => get().syncCrewFromDb())
+        .catch((err) => {
+          if (__DEV__) console.warn('[crew] pushup log sync failed:', err);
+        });
     }
 
     return { leveledUp };

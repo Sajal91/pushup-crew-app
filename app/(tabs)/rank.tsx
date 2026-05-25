@@ -15,8 +15,24 @@ import {
 } from '@/state/useAppStore';
 import { weekFor } from '@/state/seed';
 import { DEFAULT_DAILY_GOAL, formatEuro } from '@/lib/mechanics';
+import type { CrewMember } from '@/types';
 
 type Mode = 'today' | 'week';
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function dayLabel(day: string): string {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  const index = date.getUTCDay();
+  return DAY_LABELS[index] ?? day.slice(5);
+}
+
+function sparklineDataFor(member: CrewMember) {
+  if (!member.dailyStats?.length) return weekFor(member.id);
+  return member.dailyStats.map((stat) => ({
+    d: dayLabel(stat.day),
+    v: stat.count,
+  }));
+}
 
 export default function RankScreen() {
   const [mode, setMode] = useState<Mode>('today');
@@ -79,7 +95,7 @@ export default function RankScreen() {
               />
               <View style={{ marginTop: 8 }}>
                 <Sparkline
-                  data={weekFor(m.id)}
+                  data={sparklineDataFor(m)}
                   color={isMe ? colors.acid : colors.acidDim}
                   width={280}
                   height={56}

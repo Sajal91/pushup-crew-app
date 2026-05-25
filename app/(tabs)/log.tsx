@@ -47,7 +47,7 @@ export default function LogScreen() {
   return (
     <ScreenContainer>
       <View style={styles.head}>
-        <Kicker style={{ color: colors.acid, marginBottom: 6 }}>// LOG // SET</Kicker>
+        <Kicker style={{ color: colors.acid, marginBottom: 6 }}>LOG</Kicker>
         <Text style={styles.title}>HOW MANY?</Text>
       </View>
 

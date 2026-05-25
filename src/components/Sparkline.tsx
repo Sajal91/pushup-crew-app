@@ -12,10 +12,7 @@ type Props = {
   gap?: number;
 };
 
-/**
- * 7-bar sparkline used in the Leaderboard cards. Today's bar (v === null)
- * renders as a dashed outline. Mirrors the design in shared.jsx.
- */
+/** 7-bar sparkline used in the Leaderboard cards. Null values render dashed. */
 export function Sparkline({
   data,
   color = colors.acid,
@@ -23,6 +20,8 @@ export function Sparkline({
   height = 60,
   gap = 10,
 }: Props) {
+  if (data.length === 0) return null;
+
   const barW = (width - gap * (data.length - 1)) / data.length;
   const max = Math.max(...data.map((p) => p.v ?? 0), 1);
 

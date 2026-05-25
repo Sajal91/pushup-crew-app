@@ -1,4 +1,4 @@
-import type { Crew, CrewMember, ChatMessage } from '@/types';
+import type { ChatMessage, Crew, CrewMember, DailyStat } from '@/types';
 import { mapAccountStatus, type AccountStatus } from '@/lib/accountStatus';
 import { XP_PER_PUSHUP, levelFromXp, nowHHMM } from '@/lib/mechanics';
 import { supabase } from '@/lib/supabase';
@@ -42,6 +42,7 @@ type DbSnapshot = {
     name: string;
     handle: string;
     daily_goal?: number;
+    daily_stats?: { day: string; count: number }[];
     today: number;
     week: number;
     total: number;
@@ -127,6 +128,13 @@ export function mapDbChatMessage(row: DbChatMessage): ChatMessage {
   };
 }
 
+function mapDailyStats(rows: { day: string; count: number }[] | undefined): DailyStat[] {
+  return (rows ?? []).map((row) => ({
+    day: row.day,
+    count: Number(row.count) || 0,
+  }));
+}
+
 export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnapshot {
   const crew: Crew = {
     id: snapshot.crew.id,
@@ -143,6 +151,7 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
       image: m.image ?? '',
       handle: m.handle,
       dailyGoal: m.daily_goal ?? 100,
+      dailyStats: mapDailyStats(m.daily_stats),
       today: m.today,
       week: m.week,
       total: m.total,

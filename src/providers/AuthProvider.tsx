@@ -246,7 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const client = supabase;
     const channel = client
-      .channel(`crew-chat:${crewId}`)
+      .channel(`crew:${crewId}`)
       .on(
         'postgres_changes',
         {
@@ -259,16 +259,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           applyRemoteChatMessage(mapDbChatMessage(payload.new as DbChatMessage));
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'pushup_logs',
+          filter: `crew_id=eq.${crewId}`,
+        },
+        () => {
+          void syncCrewFromDb();
+        },
+      )
       .subscribe((status) => {
         if (__DEV__ && status === 'CHANNEL_ERROR') {
-          console.warn('[chat] Realtime channel error');
+          console.warn('[crew] Realtime channel error');
         }
       });
 
     return () => {
       void client.removeChannel(channel);
     };
-  }, [applyRemoteChatMessage, crewId, session]);
+  }, [applyRemoteChatMessage, crewId, session, syncCrewFromDb]);
 
   useEffect(() => {
     if (incomingUrl) {
