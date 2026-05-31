@@ -20,10 +20,16 @@ import {
 import { colors } from '@/theme';
 import { useAppStore } from '@/state/useAppStore';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { PushNotificationsSetup } from '@/components/PushNotificationsSetup';
 import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
+import { scheduleTestNotification } from '@/lib/notifications';
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+if (__DEV__) {
+  scheduleTestNotification(10)
+}
+
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootNavigator() {
   const [antonLoaded] = useAnton({ Anton_400Regular });
@@ -117,6 +123,7 @@ function RootNavigator() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }} onLayout={onLayoutRootView}>
       <StatusBar style="light" />
+      <PushNotificationsSetup />
       <Stack
         screenOptions={{
           headerShown: false,

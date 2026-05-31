@@ -15,6 +15,7 @@ import {
   type CrewSnapshot,
 } from '@/lib/crewDb';
 import { ensureMeInCrew } from '@/state/crewHelpers';
+import { syncDailyGoalReminder } from '@/lib/notifications';
 
 export type CrewSyncState = 'idle' | 'loading' | 'ready';
 
@@ -309,6 +310,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       } finally {
         set({ crewSyncState: 'ready' });
         crewSyncInFlight = null;
+        const state = get();
+        const me = state.crew.find((m) => m.id === state.meId) ?? state.crew.find((m) => m.isMe);
+        void syncDailyGoalReminder(me, state.dailyGoal);
       }
     })();
 
@@ -345,6 +349,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
       levelUpEvent: leveledUp ? Date.now() : get().levelUpEvent,
     });
+
+    const updatedMe = get().crew.find((m) => m.id === meId) ?? get().crew.find((m) => m.isMe);
+    void syncDailyGoalReminder(updatedMe, get().dailyGoal);
 
     if (supabaseConfigured && crewId) {
       void insertPushupLog(crewId, count)

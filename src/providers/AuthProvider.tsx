@@ -26,6 +26,7 @@ import {
   type DbChatMessage,
 } from '@/lib/crewDb';
 import { useAppStore } from '@/state/useAppStore';
+import { clearDailyGoalReminderOnSignOut } from '@/lib/notifications';
 
 type SignInResult =
   | { ok: true; redirectPath: string }
@@ -360,6 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loggedStaleSessionRef.current = false;
     authBootstrappedRef.current = false;
     setAccountReady(false);
+    await clearDailyGoalReminderOnSignOut();
     await authSignOut();
     await resetOnboarding();
     clearAuthProfile();
