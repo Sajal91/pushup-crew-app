@@ -65,7 +65,7 @@ export default function YouScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer fadeOnFocus>
       <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: spacing.screen }}>
         <View style={styles.avatarWrap}>
           {me.image ? (

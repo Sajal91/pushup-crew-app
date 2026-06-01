@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, glows, spacing } from '@/theme';
@@ -9,6 +9,10 @@ import { HeroNumber } from '@/components/HeroNumber';
 import { AcidButton } from '@/components/AcidButton';
 import { Chip } from '@/components/Chip';
 import { ProgressBar } from '@/components/ProgressBar';
+import {
+  LogCelebrationOverlay,
+  logCelebrationDurationMs,
+} from '@/components/LogCelebrationOverlay';
 import { useAppStore, selectMe } from '@/state/useAppStore';
 import { XP_PER_PUSHUP } from '@/lib/mechanics';
 
@@ -20,6 +24,14 @@ export default function LogScreen() {
   const logPushups = useAppStore((s) => s.logPushups);
   const dailyGoal = useAppStore((s) => s.dailyGoal);
   const [count, setCount] = useState(20);
+  const [isLogging, setIsLogging] = useState(false);
+  const navigateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navigateTimer.current) clearTimeout(navigateTimer.current);
+    };
+  }, []);
 
   if (!me) return null;
 
@@ -38,14 +50,18 @@ export default function LogScreen() {
   const bump = (delta: number) => setCount((c) => Math.max(0, c + delta));
 
   const submit = () => {
-    if (count <= 0) return;
+    if (count <= 0 || isLogging) return;
     logPushups(count);
-    // TODO(animation): trigger confetti + (if leveledUp) level-up overlay
-    router.replace('/(tabs)');
+    setIsLogging(true);
+    navigateTimer.current = setTimeout(() => {
+      router.replace('/(tabs)');
+      setIsLogging(false);
+    }, logCelebrationDurationMs());
   };
 
   return (
-    <ScreenContainer>
+    <View style={styles.root}>
+    <ScreenContainer fadeOnFocus scrollEnabled={!isLogging}>
       <View style={styles.head}>
         <Kicker style={{ color: colors.acid, marginBottom: 6 }}>LOG</Kicker>
         <Text style={styles.title}>HOW MANY?</Text>
@@ -66,6 +82,7 @@ export default function LogScreen() {
           <Pressable
             key={b.l}
             onPress={() => bump(b.d)}
+            disabled={isLogging}
             style={({ pressed }) => [
               styles.dial,
               b.primary && styles.dialPrimary,
@@ -83,14 +100,14 @@ export default function LogScreen() {
             <Chip
               label={q === remainingNow ? 'FINISH' : String(q)}
               selected={count === q}
-              onPress={() => setCount(q)}
+              onPress={isLogging ? undefined : () => setCount(q)}
             />
           </View>
         ))}
       </View>
 
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 18 }}>
-        <AcidButton label="LOG IT" onPress={submit} />
+        <AcidButton label="LOG IT" onPress={submit} disabled={isLogging} />
       </View>
 
       <View style={[{ paddingHorizontal: spacing.screen, marginTop: 16 }]}>
@@ -119,6 +136,8 @@ export default function LogScreen() {
         </Panel>
       </View>
     </ScreenContainer>
+    <LogCelebrationOverlay count={count} visible={isLogging} />
+    </View>
   );
 }
 
@@ -136,6 +155,10 @@ function PreviewCell({ label, current, next }: { label: string; current: number;
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
   head: {
     paddingHorizontal: spacing.screen,
     paddingTop: 8,

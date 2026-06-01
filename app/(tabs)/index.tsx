@@ -32,7 +32,7 @@ export default function Home() {
   const weekTotal = me.week;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer fadeOnFocus>
       <View style={styles.hero}>
         <Kicker style={{ color: colors.dim, marginBottom: 8 }}>
           EAT . SLEEP . PUSHUP . REPEAT

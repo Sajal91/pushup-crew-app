@@ -41,7 +41,7 @@ export default function RankScreen() {
   const dailyGoal = useAppStore((s) => s.dailyGoal);
 
   return (
-    <ScreenContainer>
+    <ScreenContainer fadeOnFocus>
       <SectionTitle kicker="RANKING">LEADERBOARD</SectionTitle>
 
       <View style={{ paddingHorizontal: spacing.screen, marginTop: 6 }}>

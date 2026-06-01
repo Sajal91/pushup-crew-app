@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Pressable, Text, StyleSheet, Platform, Keyboard } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, radius, glows } from '@/theme';
@@ -18,6 +23,43 @@ const TAB_LABELS: Record<TabId, keyof typeof Ionicons.glyphMap> = {
 };
 
 const ORDER: TabId[] = ['log', 'rank', 'index', 'chat', 'you'];
+
+function TabButton({
+  focused,
+  label,
+  onPress,
+}: {
+  focused: boolean;
+  label: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(focused ? 1 : 0.92);
+
+  useEffect(() => {
+    scale.value = withSpring(focused ? 1 : 0.92, { damping: 16, stiffness: 220 });
+  }, [focused, scale]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.tabPressable, pressed && { opacity: 0.85 }]}
+    >
+      <Animated.View style={[styles.tab, focused && styles.tabActive, animStyle]}>
+        <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+          <Ionicons
+            name={label}
+            size={focused ? 20 : 16}
+            color={focused ? colors.dark : colors.dim}
+          />
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 function FloatingTabBar({ state, navigation }: any) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -47,19 +89,12 @@ function FloatingTabBar({ state, navigation }: any) {
               state.index === state.routes.findIndex((r: any) => r.name === route.name);
             const label = TAB_LABELS[route.name as TabId];
             return (
-              <Pressable
+              <TabButton
                 key={route.key}
+                focused={focused}
+                label={label}
                 onPress={() => navigation.navigate(route.name)}
-                style={({ pressed }) => [
-                  styles.tab,
-                  focused && styles.tabActive,
-                  pressed && { opacity: 0.85 },
-                ]}
-              >
-                <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
-                  <Ionicons name={label} size={focused ? 20 : 16} color={focused ? colors.dark : colors.dim} />
-                </Text>
-              </Pressable>
+              />
             );
           })}
       </View>
@@ -82,6 +117,11 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.bg },
+        animation: 'fade',
+        transitionSpec: {
+          animation: 'timing',
+          config: { duration: 280 },
+        },
       }}
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
@@ -113,6 +153,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
     ...glows.card,
+  },
+  tabPressable: {
+    flex: 1,
   },
   tab: {
     flex: 1,
