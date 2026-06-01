@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { CrewMember } from '@/types';
 import { todayISO } from '@/lib/mechanics';
 
@@ -11,15 +11,51 @@ const DAILY_REMINDER_HOUR_GMT2 = 18;
 const DAILY_REMINDER_UTC_HOUR = 16;
 const DAILY_REMINDER_UTC_MINUTE = 0;
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+type NotificationsModule = typeof import('expo-notifications');
+type NotificationResponse = import('expo-notifications').NotificationResponse;
+type NotificationSubscription = { remove: () => void };
+
+let notificationsModule: NotificationsModule | null = null;
+let notificationsHandlerConfigured = false;
+let expoGoSkipLogged = false;
+
+function shouldSkipNotifications(): boolean {
+  return (
+    Platform.OS === 'web' ||
+    (Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient)
+  );
+}
+
+function logExpoGoSkipOnce(): void {
+  if (!__DEV__ || expoGoSkipLogged) return;
+  expoGoSkipLogged = true;
+  console.log('[notifications] Skipped in Android Expo Go. Use a development build to test notifications.');
+}
+
+async function getNotifications(): Promise<NotificationsModule | null> {
+  if (shouldSkipNotifications()) {
+    logExpoGoSkipOnce();
+    return null;
+  }
+
+  if (!notificationsModule) {
+    notificationsModule = await import('expo-notifications');
+  }
+
+  if (!notificationsHandlerConfigured) {
+    notificationsModule.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    notificationsHandlerConfigured = true;
+  }
+
+  return notificationsModule;
+}
 
 /** Calendar day YYYY-MM-DD in fixed GMT+2 (matches the 18:00 reminder timezone). */
 export function gmt2IsoDay(date = new Date()): string {
@@ -73,6 +109,8 @@ function minutesUntil(date: Date): number {
 
 async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
 
   await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
     name: 'Daily Reminders',
@@ -84,7 +122,8 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 export async function ensureNotificationPermissions(): Promise<boolean> {
-  if (Platform.OS === 'web') return false;
+  const Notifications = await getNotifications();
+  if (!Notifications) return false;
 
   await ensureAndroidChannel();
 
@@ -96,7 +135,8 @@ export async function ensureNotificationPermissions(): Promise<boolean> {
 }
 
 export async function cancelDailyGoalReminder(): Promise<void> {
-  if (Platform.OS === 'web') return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID);
 }
 
@@ -108,7 +148,8 @@ export async function rescheduleDailyGoalReminder(params: {
   todayCount: number;
   dailyGoal: number;
 }): Promise<void> {
-  if (Platform.OS === 'web') return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
 
   await cancelDailyGoalReminder();
 
@@ -175,7 +216,8 @@ export async function rescheduleDailyGoalReminder(params: {
 
 /** Fire a notification in a few seconds — use only to verify permissions on a device. */
 export async function scheduleTestNotification(secondsFromNow = 10): Promise<void> {
-  if (Platform.OS === 'web') return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
 
   const granted = await ensureNotificationPermissions();
   if (!granted) {
@@ -216,7 +258,29 @@ export async function clearDailyGoalReminderOnSignOut(): Promise<void> {
 }
 
 export function addNotificationResponseListener(
-  handler: (response: Notifications.NotificationResponse) => void,
-): Notifications.EventSubscription {
-  return Notifications.addNotificationResponseReceivedListener(handler);
+  handler: (response: NotificationResponse) => void,
+): NotificationSubscription {
+  if (shouldSkipNotifications()) {
+    logExpoGoSkipOnce();
+    return { remove: () => {} };
+  }
+
+  let subscription: NotificationSubscription | null = null;
+  let removed = false;
+  void getNotifications().then((Notifications) => {
+    if (!Notifications) return;
+    const nextSubscription = Notifications.addNotificationResponseReceivedListener(handler);
+    if (removed) {
+      nextSubscription.remove();
+      return;
+    }
+    subscription = nextSubscription;
+  });
+
+  return {
+    remove: () => {
+      removed = true;
+      subscription?.remove();
+    },
+  };
 }
