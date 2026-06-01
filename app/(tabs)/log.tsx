@@ -61,82 +61,82 @@ export default function LogScreen() {
 
   return (
     <View style={styles.root}>
-    <ScreenContainer fadeOnFocus scrollEnabled={!isLogging}>
-      <View style={styles.head}>
-        <Kicker style={{ color: colors.acid, marginBottom: 6 }}>LOG</Kicker>
-        <Text style={styles.title}>HOW MANY?</Text>
-      </View>
+      <ScreenContainer fadeOnFocus scrollEnabled={!isLogging}>
+        <View style={styles.head}>
+          <Kicker style={{ color: colors.acid, marginBottom: 6 }}>LOG</Kicker>
+          <Text style={styles.title}>HOW MANY?</Text>
+        </View>
 
-      <View style={styles.displayWrap}>
-        <HeroNumber value={count} size={160} />
-        <Text style={styles.pushupsLabel}>PUSHUPS</Text>
-      </View>
+        <View style={styles.displayWrap}>
+          <HeroNumber value={count} size={160} />
+          <Text style={styles.pushupsLabel}>PUSHUPS</Text>
+        </View>
 
-      <View style={styles.dialRow}>
-        {[
-          { l: '−5', d: -5, primary: false },
-          { l: '−1', d: -1, primary: false },
-          { l: '+1', d: 1, primary: true },
-          { l: '+5', d: 5, primary: true },
-        ].map((b) => (
-          <Pressable
-            key={b.l}
-            onPress={() => bump(b.d)}
-            disabled={isLogging}
-            style={({ pressed }) => [
-              styles.dial,
-              b.primary && styles.dialPrimary,
-              pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
-            ]}
-          >
-            <Text style={[styles.dialLabel, b.primary && { color: '#000' }]}>{b.l}</Text>
-          </Pressable>
-        ))}
-      </View>
+        <View style={styles.dialRow}>
+          {[
+            { l: '−5', d: -5, primary: false },
+            { l: '−1', d: -1, primary: false },
+            { l: '+1', d: 1, primary: true },
+            { l: '+5', d: 5, primary: true },
+          ].map((b) => (
+            <Pressable
+              key={b.l}
+              onPress={() => bump(b.d)}
+              disabled={isLogging}
+              style={({ pressed }) => [
+                styles.dial,
+                b.primary && styles.dialPrimary,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+              ]}
+            >
+              <Text style={[styles.dialLabel, b.primary && { color: '#000' }]}>{b.l}</Text>
+            </Pressable>
+          ))}
+        </View>
 
-      <View style={styles.quickRow}>
-        {quickValues.map((q) => (
-          <View key={q} style={{ flex: 1 }}>
-            <Chip
-              label={q === remainingNow ? 'FINISH' : String(q)}
-              selected={count === q}
-              onPress={isLogging ? undefined : () => setCount(q)}
-            />
-          </View>
-        ))}
-      </View>
-
-      <View style={{ paddingHorizontal: spacing.screen, marginTop: 18 }}>
-        <AcidButton label="LOG IT" onPress={submit} disabled={isLogging} />
-      </View>
-
-      <View style={[{ paddingHorizontal: spacing.screen, marginTop: 16 }]}>
-        <Panel pad="md">
-          <Kicker style={{ marginBottom: 8 }}>// BECOMES</Kicker>
-          <View style={styles.goalPreview}>
-            <View style={styles.goalPreviewHead}>
-              <Text style={styles.goalPreviewText}>
-                {newToday} / {goal} TODAY
-              </Text>
-              <Text style={[styles.goalPreviewText, newRemaining === 0 && { color: colors.acid }]}>
-                {newRemaining === 0 ? 'GOAL HIT' : `${newRemaining} LEFT`}
-              </Text>
+        <View style={styles.quickRow}>
+          {quickValues.map((q) => (
+            <View key={q} style={{ flex: 1 }}>
+              <Chip
+                label={q === remainingNow ? 'FINISH' : String(q)}
+                selected={count === q}
+                onPress={isLogging ? undefined : () => setCount(q)}
+              />
             </View>
-            <ProgressBar progress={newGoalProgress} height={6} glow={newRemaining === 0} />
-          </View>
-          <View style={styles.previewRow}>
-            <PreviewCell label="TODAY" current={me.today} next={newToday} />
-            <PreviewCell label="XP" current={me.xp} next={newXp} />
-            <PreviewCell
-              label="STREAK"
-              current={me.streak}
-              next={willHitGoal ? me.streak + 1 : me.streak}
-            />
-          </View>
-        </Panel>
-      </View>
-    </ScreenContainer>
-    <LogCelebrationOverlay count={count} visible={isLogging} />
+          ))}
+        </View>
+
+        <View style={{ paddingHorizontal: spacing.screen, marginTop: 18 }}>
+          <AcidButton label="LOG IT" onPress={submit} disabled={isLogging} />
+        </View>
+
+        <View style={[{ paddingHorizontal: spacing.screen, marginTop: 16 }]}>
+          <Panel pad="md">
+            <Kicker style={{ marginBottom: 8 }}>// BECOMES</Kicker>
+            <View style={styles.goalPreview}>
+              <View style={styles.goalPreviewHead}>
+                <Text style={styles.goalPreviewText}>
+                  {newToday} / {goal} TODAY
+                </Text>
+                <Text style={[styles.goalPreviewText, newRemaining === 0 && { color: colors.acid }]}>
+                  {newRemaining === 0 ? 'GOAL HIT' : `${newRemaining} LEFT`}
+                </Text>
+              </View>
+              <ProgressBar progress={newGoalProgress} height={6} glow={newRemaining === 0} />
+            </View>
+            <View style={styles.previewRow}>
+              <PreviewCell label="TODAY" current={me.today} next={newToday} />
+              <PreviewCell label="XP" current={me.xp} next={newXp} />
+              <PreviewCell
+                label="STREAK"
+                current={me.streak}
+                next={willHitGoal ? me.streak + 1 : me.streak}
+              />
+            </View>
+          </Panel>
+        </View>
+      </ScreenContainer>
+      <LogCelebrationOverlay count={count} visible={isLogging} />
     </View>
   );
 }

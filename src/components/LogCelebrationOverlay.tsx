@@ -58,12 +58,12 @@ export function LogCelebrationOverlay({ count, visible }: Props) {
   return (
     <Animated.View entering={FadeIn.duration(280)} style={styles.overlay} pointerEvents="box-only">
       <View style={styles.center}>
-        <Animated.View style={[styles.ring, ringStyle]} />
+        {/* <Animated.View style={[styles.ring, ringStyle]} /> */}
         <Animated.View entering={FadeInUp.duration(400).springify()}>
           <Text style={styles.kicker}>LOGGED</Text>
         </Animated.View>
         <Animated.View entering={FadeInUp.delay(80).duration(450).springify()}>
-          <HeroNumber value={`+${count}`} size={140} />
+          <HeroNumber value={`${count}`} size={140} />
         </Animated.View>
         <Animated.Text entering={FadeIn.delay(200).duration(400)} style={styles.sub}>
           PUSHUPS COUNTED

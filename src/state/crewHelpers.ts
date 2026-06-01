@@ -14,7 +14,7 @@ export function placeholderMe(
     image,
     dailyGoal,
     handle: '@me',
-    level: 0,
+    level: 1,
     xp: 0,
     streak: 0,
     today: 0,

@@ -14,7 +14,7 @@ import {
   selectRankedByWeek,
 } from '@/state/useAppStore';
 import { weekFor } from '@/state/seed';
-import { DEFAULT_DAILY_GOAL, formatEuro } from '@/lib/mechanics';
+import { DEFAULT_DAILY_GOAL, formatEuro, levelFromXp } from '@/lib/mechanics';
 import type { CrewMember } from '@/types';
 
 type Mode = 'today' | 'week';
@@ -75,7 +75,7 @@ export default function RankScreen() {
                     {isMe ? <Text style={{ color: colors.acid }}> · YOU</Text> : null}
                   </Text>
                   <Text style={styles.meta}>
-                    LVL {m.level} · {m.streak}D STREAK
+                    LVL {levelFromXp(m.xp)} · {m.streak}D STREAK
                   </Text>
                 </View>
                 <Text style={[styles.value, i === 0 && { color: colors.acid }]}>

@@ -10,7 +10,12 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { AcidButton } from '@/components/AcidButton';
 import { useAppStore, selectMe, getCrewInviteCode } from '@/state/useAppStore';
 import { useAuth } from '@/providers/AuthProvider';
-import { XP_PER_LEVEL, xpInLevel, levelFromXp, levelProgress } from '@/lib/mechanics';
+import {
+  xpInLevel,
+  levelFromXp,
+  levelProgress,
+  xpNeededForNextLevel,
+} from '@/lib/mechanics';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 
@@ -44,6 +49,7 @@ export default function YouScreen() {
 
   const lvl = levelFromXp(me.xp);
   const inLevel = xpInLevel(me.xp);
+  const nextLevelXp = xpNeededForNextLevel(lvl);
   const progress = levelProgress(me.xp);
 
   const badges: Badge[] = [
@@ -87,7 +93,7 @@ export default function YouScreen() {
           <View style={styles.rowBetween}>
             <Kicker style={{ color: colors.dim }}>LEVEL</Kicker>
             <Kicker style={{ color: colors.dim }}>
-              {inLevel} / {XP_PER_LEVEL} XP
+              {inLevel} / {nextLevelXp} XP
             </Kicker>
           </View>
           <View style={styles.levelCenter}>
