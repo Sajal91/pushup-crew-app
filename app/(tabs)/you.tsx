@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, Alert, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, glows, spacing } from '@/theme';
@@ -20,6 +20,7 @@ import {
 } from '@/lib/mechanics';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { playTapSound, preloadTapSound } from '@/lib/tapSound';
 
 type Badge = {
   id: string;
@@ -40,10 +41,15 @@ export default function YouScreen() {
   const [isCopying, setIsCopying] = useState(false);
   const hasCrew = Boolean(crewMeta.id);
 
+  useEffect(() => {
+    preloadTapSound();
+  }, []);
+
   if (!me) return null;
 
   const handleSignOut = async () => {
     if (signingOut) return;
+    playTapSound();
     setSigningOut(true);
     try {
       await signOut();

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing } from '@/theme';
 import { StepDots } from './StepDots';
+import { preloadTapSound } from '@/lib/tapSound';
 
 type Props = {
   step?: number;
@@ -17,6 +18,10 @@ type Props = {
  */
 export function OnboardingScreen({ step, totalSteps = 2, children, footer }: Props) {
   const showDots = step !== undefined;
+
+  useEffect(() => {
+    preloadTapSound();
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>

@@ -8,6 +8,7 @@ import { Kicker } from '@/components/Kicker';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabaseConfigured } from '@/lib/supabase';
 import CustomGoogleButton from '@/components/CustomGoogleButton';
+import { playTapSound } from '@/lib/tapSound';
 
 export default function Welcome() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function Welcome() {
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
+    playTapSound();
     setError(null);
     const result = await signInWithGoogle();
     if (result.ok) {
@@ -40,6 +42,11 @@ export default function Welcome() {
     setError(result.reason ?? 'Sign-in failed. Try again.');
   };
 
+  const handleDemoContinue = () => {
+    playTapSound();
+    router.replace('/(onboarding)/name');
+  };
+
   return (
     <OnboardingScreen
       footer={
@@ -55,7 +62,7 @@ export default function Welcome() {
           ) : (
             <AcidButton
               label="CONTINUE IN DEMO MODE →"
-              onPress={() => router.replace('/(onboarding)/name')}
+              onPress={handleDemoContinue}
             />
           )}
           {/* {signingIn ? (

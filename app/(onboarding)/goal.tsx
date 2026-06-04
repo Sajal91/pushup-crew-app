@@ -12,6 +12,7 @@ import { useAppStore } from '@/state/useAppStore';
 import { DEFAULT_DAILY_GOAL } from '@/lib/mechanics';
 import { updateMyDailyGoal } from '@/lib/crewDb';
 import { supabaseConfigured } from '@/lib/supabase';
+import { playTapSound } from '@/lib/tapSound';
 
 const PRESETS = [50, 100, 150, 200];
 
@@ -27,6 +28,25 @@ export default function GoalStep() {
   // Step buttons act as a +/- coarse slider (real slider would need @react-native-community/slider)
   const bump = (delta: number) => setGoal((g) => Math.max(20, Math.min(300, g + delta)));
 
+  const handleContinue = async () => {
+    if (saving) return;
+    playTapSound();
+    setSaving(true);
+    setError(null);
+    try {
+      setDailyGoal(goal);
+      if (supabaseConfigured) {
+        await updateMyDailyGoal(goal);
+      }
+      await completeOnboarding();
+      router.replace('/(tabs)');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save goal');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <OnboardingScreen
       step={2}
@@ -35,23 +55,7 @@ export default function GoalStep() {
         <AcidButton
           label={saving ? 'STARTING…' : "LET'S GO →"}
           disabled={saving}
-          onPress={async () => {
-            if (saving) return;
-            setSaving(true);
-            setError(null);
-            try {
-              setDailyGoal(goal);
-              if (supabaseConfigured) {
-                await updateMyDailyGoal(goal);
-              }
-              await completeOnboarding();
-              router.replace('/(tabs)');
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Could not save goal');
-            } finally {
-              setSaving(false);
-            }
-          }}
+          onPress={handleContinue}
         />
       }
     >

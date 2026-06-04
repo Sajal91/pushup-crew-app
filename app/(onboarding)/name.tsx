@@ -10,6 +10,7 @@ import { clampDisplayName } from '@/lib/displayName';
 import { updateUserDisplayName } from '@/lib/auth';
 import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
+import { playTapSound } from '@/lib/tapSound';
 
 export default function NameStep() {
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function NameStep() {
 
   const handleContinue = async () => {
     if (!canContinue || saving) return;
+    playTapSound();
     setError(null);
     setSaving(true);
     try {
