@@ -20,6 +20,18 @@ export type CrewSnapshot = {
   chat: ChatMessage[];
 };
 
+export type PersonalStats = {
+  lifetimeTotal: number;
+  streak: number;
+  dailyGoal?: number;
+};
+
+type DbPersonalStats = {
+  lifetime_total: number;
+  streak: number;
+  daily_goal?: number;
+};
+
 type DbCrewPreview = {
   crew_id: string;
   name: string;
@@ -43,9 +55,12 @@ type DbSnapshot = {
     handle: string;
     daily_goal?: number;
     daily_stats?: { day: string; count: number }[];
+    lifetime_total?: number;
+    streak?: number;
+    skip_days?: number;
     today: number;
     week: number;
-    total: number;
+    total?: number;
   }[];
   chat: {
     id: number;
@@ -93,6 +108,8 @@ function mapRpcError(error: { message: string; code?: string }): string {
   if (msg.includes('crew_not_found')) return 'No crew found with that code.';
   if (msg.includes('invite_code_taken')) return 'That invite code is already taken.';
   if (msg.includes('already_in_crew')) return 'You are already in a crew.';
+  if (msg.includes('not_in_crew')) return 'You are not in a crew.';
+  if (msg.includes('same_crew')) return 'You are already in that crew.';
   if (msg.includes('profile_not_found')) return 'Complete your profile first.';
   if (msg.includes('auth_user_not_ready')) return 'Still signing you in — try again in a moment.';
   if (msg.includes('profiles_id_fkey')) return 'Account not ready yet — wait a moment and try again.';
@@ -135,6 +152,27 @@ function mapDailyStats(rows: { day: string; count: number }[] | undefined): Dail
   }));
 }
 
+function mapPersonalStats(row: DbPersonalStats): PersonalStats {
+  return {
+    lifetimeTotal: Number(row.lifetime_total) || 0,
+    streak: Number(row.streak) || 0,
+    dailyGoal: row.daily_goal,
+  };
+}
+
+export function memberFromPersonalStats(
+  lifetimeTotal: number,
+  streak: number,
+): Pick<CrewMember, 'total' | 'xp' | 'level' | 'streak'> {
+  const xp = lifetimeTotal * XP_PER_PUSHUP;
+  return {
+    total: lifetimeTotal,
+    xp,
+    level: levelFromXp(xp),
+    streak,
+  };
+}
+
 export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnapshot {
   const crew: Crew = {
     id: snapshot.crew.id,
@@ -144,7 +182,8 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
   };
 
   const members: CrewMember[] = (snapshot.members ?? []).map((m) => {
-    const xp = m.total * XP_PER_PUSHUP;
+    const lifetimeTotal = m.lifetime_total ?? m.total ?? 0;
+    const personal = memberFromPersonalStats(lifetimeTotal, m.streak ?? 0);
     return {
       id: m.id,
       name: m.name,
@@ -154,10 +193,8 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
       dailyStats: mapDailyStats(m.daily_stats),
       today: m.today,
       week: m.week,
-      total: m.total,
-      xp,
-      level: levelFromXp(xp),
-      streak: m.today > 0 ? 1 : 0,
+      skipDays: m.skip_days ?? 0,
+      ...personal,
       isMe: m.id === meId,
     };
   });
@@ -288,6 +325,25 @@ export async function joinCrewByInviteCode(code: string): Promise<CrewSnapshot> 
   } = await client.auth.getUser();
   if (!user) throw new Error('Not signed in');
   return mapSnapshotToState(data as DbSnapshot, user.id);
+}
+
+export async function leaveMyCrew(): Promise<PersonalStats> {
+  const client = requireClient();
+  const { data, error } = await client.rpc('leave_my_crew');
+  if (error) throw new Error(mapRpcError(error));
+  return mapPersonalStats(data as DbPersonalStats);
+}
+
+export async function fetchMyPersonalStats(): Promise<PersonalStats | null> {
+  const client = requireClient();
+  const { data, error } = await withTimeout(
+    client.rpc('get_my_personal_stats'),
+    RPC_TIMEOUT_MS,
+    'Personal stats',
+  );
+  if (error) throw new Error(mapRpcError(error));
+  if (!data) return null;
+  return mapPersonalStats(data as DbPersonalStats);
 }
 
 export async function fetchMyCrewSnapshot(userId?: string): Promise<CrewSnapshot | null> {

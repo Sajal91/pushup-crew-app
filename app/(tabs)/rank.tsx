@@ -40,6 +40,14 @@ export default function RankScreen() {
   const crewMeta = useAppStore((s) => s.crewMeta);
   const dailyGoal = useAppStore((s) => s.dailyGoal);
 
+  const skipSummary = ranked
+    .filter((m) => (m.skipDays ?? 0) > 0)
+    .map((m) => `${m.name} ${m.skipDays}`)
+    .join(', ');
+  const potNote = skipSummary
+    ? `Skip days: ${skipSummary}. Each skip = €1.`
+    : 'Each missed daily goal adds €1 to the pot.';
+
   return (
     <ScreenContainer fadeOnFocus>
       <SectionTitle kicker="RANKING">LEADERBOARD</SectionTitle>
@@ -110,9 +118,7 @@ export default function RankScreen() {
         <Panel variant="blood-dashed" pad="md">
           <Kicker style={{ color: colors.blood, marginBottom: 6 }}>// SKIP POT</Kicker>
           <Text style={styles.potValue}>{formatEuro(crewMeta.skipPotCents)}</Text>
-          <Text style={styles.potNote}>
-            Skip days: Nik 1, Sascha 2. Each skip = €1.
-          </Text>
+          <Text style={styles.potNote}>{potNote}</Text>
         </Panel>
       </View>
     </ScreenContainer>

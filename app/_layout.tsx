@@ -69,6 +69,7 @@ function RootNavigator() {
     const currentStep = segments[1] as string | undefined;
     const inTabs = segments[0] === '(tabs)';
     const inAuth = segments[0] === 'auth';
+    const inManageCrew = segments[0] === 'manage-crew';
 
     // Hard guard: stale or missing auth must never reach crew/tabs.
     if (supabaseConfigured && !session) {
@@ -92,7 +93,7 @@ function RootNavigator() {
       return;
     }
 
-    if (!inTabs && !inAuth) {
+    if (!inTabs && !inAuth && !inManageCrew) {
       router.replace('/(tabs)');
     }
   }, [gateReady, session, onboarded, nameConfirmed, crewMeta.id, segments, router]);

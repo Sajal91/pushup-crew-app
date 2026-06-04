@@ -19,6 +19,7 @@ export type CrewMember = {
   today: number;
   week: number;
   total: number;
+  skipDays?: number;
   isMe?: boolean;
 };
 

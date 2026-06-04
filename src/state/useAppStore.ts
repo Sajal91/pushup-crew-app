@@ -9,12 +9,15 @@ import { supabaseConfigured } from '@/lib/supabase';
 import {
   confirmMyProfileName,
   fetchMyCrewSnapshot,
+  fetchMyPersonalStats,
   insertChatMessage,
   insertPushupLog,
+  memberFromPersonalStats,
   type AccountStatus,
   type CrewSnapshot,
+  type PersonalStats,
 } from '@/lib/crewDb';
-import { ensureMeInCrew } from '@/state/crewHelpers';
+import { ensureMeInCrew, placeholderMe } from '@/state/crewHelpers';
 import { syncDailyGoalReminder } from '@/lib/notifications';
 
 export type CrewSyncState = 'idle' | 'loading' | 'ready';
@@ -60,6 +63,8 @@ type AppState = {
   completeOnboarding: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
   applyCrewSnapshot: (snapshot: CrewSnapshot) => void;
+  applyPersonalStats: (stats: PersonalStats) => void;
+  clearCrew: (personalStats?: PersonalStats) => void;
   syncCrewFromDb: () => Promise<void>;
   logPushups: (count: number) => { leveledUp: boolean };
   applyRemoteChatMessage: (message: ChatMessage, optimisticId?: string | number) => void;
@@ -104,6 +109,27 @@ function addToTodayStats(stats: DailyStat[] | undefined, count: number): DailySt
   }
 
   return next.sort((a, b) => a.day.localeCompare(b.day)).slice(-7);
+}
+
+function personalStatsFromMe(me: CrewMember | undefined): PersonalStats | undefined {
+  if (!me) return undefined;
+  return {
+    lifetimeTotal: me.total,
+    streak: me.streak,
+    dailyGoal: me.dailyGoal,
+  };
+}
+
+function meWithPersonalStats(
+  meId: string,
+  name: string,
+  image: string,
+  dailyGoal: number,
+  stats: PersonalStats,
+): CrewMember {
+  return {
+    ...placeholderMe(meId, name, image, stats.dailyGoal ?? dailyGoal, stats),
+  };
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -233,6 +259,46 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
+  clearCrew: (personalStats) => {
+    const state = get();
+    const stats =
+      personalStats ??
+      personalStatsFromMe(state.crew.find((m) => m.id === state.meId || m.isMe));
+    const me = stats
+      ? meWithPersonalStats(state.meId, state.name, state.image, state.dailyGoal, stats)
+      : placeholderMe(state.meId, state.name, state.image, state.dailyGoal);
+
+    set({
+      crew: state.meId ? [me] : INITIAL_CREW,
+      crewMeta: INITIAL_CREW_META,
+      chat: INITIAL_CHAT,
+      crewSyncState: supabaseConfigured ? 'idle' : 'ready',
+    });
+  },
+
+  applyPersonalStats: (stats) => {
+    const state = get();
+    if (!state.meId) return;
+
+    const personal = memberFromPersonalStats(stats.lifetimeTotal, stats.streak);
+    set({
+      ...(stats.dailyGoal !== undefined ? { dailyGoal: stats.dailyGoal } : {}),
+      crew: ensureMeInCrew(state.crew, state.meId, state.name, state.image, state.dailyGoal).map(
+        (m) =>
+          m.id === state.meId || m.isMe
+            ? {
+                ...m,
+                ...personal,
+                today: 0,
+                week: 0,
+                dailyStats: emptySevenDayStats(),
+                dailyGoal: stats.dailyGoal ?? m.dailyGoal,
+              }
+            : m,
+      ),
+    });
+  },
+
   applyCrewSnapshot: (snapshot) => {
     const me = snapshot.members.find((m) => m.isMe);
     set((state) => {
@@ -293,6 +359,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (snapshot) {
           get().applyCrewSnapshot(snapshot);
           return;
+        }
+
+        const personal = await fetchMyPersonalStats();
+        if (personal) {
+          get().applyPersonalStats(personal);
         }
 
         const state = get();

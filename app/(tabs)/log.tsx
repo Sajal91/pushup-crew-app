@@ -226,19 +226,24 @@ const styles = StyleSheet.create({
     color: colors.dim,
   },
   previewRow: {
+    marginTop: 10,
+    display: 'flex',
+    gap: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   previewCell: {
-    flex: 1,
+    // flex: 1,
   },
   previewLabel: {
     fontFamily: fonts.mono,
     fontSize: 10,
     letterSpacing: 1.5,
     color: colors.dim,
+    textAlign:'center'
   },
   previewValue: {
+    textAlign: 'center',
     marginTop: 4,
     fontFamily: fonts.bodySemi,
     fontSize: 14,

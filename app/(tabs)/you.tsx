@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, Alert, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -10,6 +10,8 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { AcidButton } from '@/components/AcidButton';
 import { useAppStore, selectMe, getCrewInviteCode } from '@/state/useAppStore';
 import { useAuth } from '@/providers/AuthProvider';
+import { supabaseConfigured } from '@/lib/supabase';
+import { leaveMyCrew } from '@/lib/crewDb';
 import {
   xpInLevel,
   levelFromXp,
@@ -31,8 +33,12 @@ export default function YouScreen() {
   const { signOut } = useAuth();
   const me = useAppStore(selectMe);
   const inviteCode = useAppStore(getCrewInviteCode);
+  const crewMeta = useAppStore((s) => s.crewMeta);
+  const clearCrew = useAppStore((s) => s.clearCrew);
   const [signingOut, setSigningOut] = useState(false);
+  const [leavingCrew, setLeavingCrew] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const hasCrew = Boolean(crewMeta.id);
 
   if (!me) return null;
 
@@ -62,47 +68,99 @@ export default function YouScreen() {
   ];
 
   const handleCopyInvite = async () => {
-    setIsCopying(true)
+    setIsCopying(true);
     await Clipboard.setStringAsync(inviteCode);
     alert('Copied!');
     setTimeout(() => {
-      setIsCopying(false)
+      setIsCopying(false);
     }, 2000);
-  }
+  };
+
+  const handleLeaveCrew = () => {
+    if (!supabaseConfigured || !hasCrew || leavingCrew) return;
+
+    Alert.alert(
+      'Leave crew?',
+      'You will leave your current crew. Your level, XP, streak, and lifetime achievements stay with you. Crew rankings, chat, and weekly progress reset until you join a new crew.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setLeavingCrew(true);
+              try {
+                const personalStats = await leaveMyCrew();
+                clearCrew(personalStats);
+                router.replace('/(onboarding)/crew');
+              } catch (err) {
+                Alert.alert(
+                  'Could not leave crew',
+                  err instanceof Error ? err.message : 'Something went wrong.',
+                );
+              } finally {
+                setLeavingCrew(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <ScreenContainer fadeOnFocus>
-      <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: spacing.screen }}>
-        <View style={styles.avatarWrap}>
-          {me.image ? (
-            <Image source={{ uri: me.image }} style={styles.avatarImage} resizeMode="cover" />
-          ) : (
-            <Ionicons name="person" size={18} color={colors.dim} />
-          )}
-        </View>
-        <Text style={styles.heading}>{me.name}</Text>
-      </View>
-      <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, paddingLeft: 20 }}>
-        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 20 }}>Invite Code</Text>
-        <Text style={{ color: colors.acid, fontWeight: "700", fontSize: 20, marginLeft: 10 }}>{inviteCode}</Text>
-        <Ionicons name={isCopying ? "copy" : "copy-outline"} onPress={handleCopyInvite} size={18} color="#fff" />
-      </View>
+      <Panel pad="lg" style={styles.profileCard}>
+        <View style={styles.profileHeader}>
+          <View style={styles.heroAvatar}>
+            {me.image ? (
+              <Image source={{ uri: me.image }} style={styles.heroAvatarImage} />
+            ) : (
+              <Ionicons name="person" size={32} color={colors.text} />
+            )}
+          </View>
 
-      <View style={{ paddingHorizontal: spacing.screen, marginTop: 8 }}>
-        <Panel pad="md">
-          <View style={styles.rowBetween}>
-            <Kicker style={{ color: colors.dim }}>LEVEL</Kicker>
-            <Kicker style={{ color: colors.dim }}>
-              {inLevel} / {nextLevelXp} XP
-            </Kicker>
-          </View>
-          <View style={styles.levelCenter}>
-            <Text style={styles.levelNum}>{lvl}</Text>
-            <Text style={styles.levelNext}>next → {lvl + 1}</Text>
-          </View>
-          <ProgressBar progress={progress} height={6} glow />
-        </Panel>
-      </View>
+          <Text style={styles.profileName}>
+            {me.name}
+          </Text>
+
+          <Text style={styles.profileLevel}>
+            Level {lvl}
+          </Text>
+        </View>
+
+        <View style={styles.inviteRow}>
+          <Text style={styles.inviteLabel}>
+            Invite Code
+          </Text>
+
+          <TouchableOpacity
+            style={styles.inviteChip}
+            onPress={handleCopyInvite}
+          >
+            <Text style={styles.inviteCode}>
+              {inviteCode}
+            </Text>
+
+            <Ionicons
+              name="copy-outline"
+              size={16}
+              color={colors.acid}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <ProgressBar
+          progress={progress}
+          height={8}
+          glow
+        />
+
+        <Text style={styles.xpText}>
+          {inLevel} / {nextLevelXp} XP
+        </Text>
+      </Panel>
 
       <View style={[styles.grid, { paddingHorizontal: spacing.screen, marginTop: 12 }]}>
         <Stat label="STREAK" value={`${me.streak}D`} />
@@ -135,6 +193,71 @@ export default function YouScreen() {
           ))}
         </View>
       </View>
+
+      {hasCrew && supabaseConfigured ? (
+        <Panel pad="lg" style={styles.crewCard}>
+          <View style={styles.crewHeader}>
+            <Ionicons
+              name="people-outline"
+              size={22}
+              color={colors.acid}
+            />
+
+            <Text style={styles.crewTitle}>
+              Crew
+            </Text>
+          </View>
+
+          <Text style={styles.crewName}>
+            {crewMeta.name}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={() => router.push('/manage-crew')}
+          >
+            <Text style={styles.menuLabel}>
+              Manage Crew
+            </Text>
+
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={colors.dim}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={handleCopyInvite}
+          >
+            <Text style={styles.menuLabel}>
+              Invite Members
+            </Text>
+
+            <Ionicons
+              name="copy-outline"
+              size={18}
+              color={colors.dim}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuRow}
+            onPress={handleLeaveCrew}
+          >
+            <Text style={styles.leaveLabel}>
+              Leave Crew
+            </Text>
+
+            <Ionicons
+              name="exit-outline"
+              size={18}
+              color="#ff6b6b"
+            />
+          </TouchableOpacity>
+        </Panel>
+      ) : null}
 
       <View style={styles.signOutWrap}>
         <AcidButton
@@ -237,6 +360,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: colors.dim,
   },
+  crewActions: {
+    marginTop: 24,
+    paddingHorizontal: spacing.screen,
+    gap: 10,
+  },
   signOutWrap: {
     marginTop: 28,
     paddingHorizontal: spacing.screen,
@@ -270,5 +398,135 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: '100%',
     height: '100%',
+  },
+  profileCard: {
+    borderRadius: 28,
+    marginHorizontal: spacing.screen,
+    marginTop: 12,
+  },
+
+  heroAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.panel,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+
+  profileName: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+
+  profileLevel: {
+    fontSize: 14,
+    color: colors.acid,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  inviteChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.panel,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+
+  statCard: {
+    flex: 1,
+    minHeight: 110,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteRow: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+
+  inviteLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.dim,
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+
+  inviteCode: {
+    color: colors.acid,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+
+  xpText: {
+    marginTop: 10,
+    textAlign: 'center',
+    color: colors.dim,
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+  },
+
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+
+  heroAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  crewCard: {
+    marginTop: 24,
+    borderRadius: 24,
+  },
+
+  crewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  crewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
+  crewName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 20,
+  },
+
+  menuRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+
+  menuLabel: {
+    fontSize: 16,
+    color: colors.text,
+  },
+
+  leaveLabel: {
+    fontSize: 16,
+    color: '#ff6b6b',
   },
 });
