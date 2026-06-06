@@ -17,6 +17,7 @@ import { Kicker } from '@/components/Kicker';
 import { SectionTitle } from '@/components/SectionTitle';
 import { useAppStore } from '@/state/useAppStore';
 import type { ChatMessage } from '@/types';
+import { getChatComposerTabBarPadding } from '@/lib/tabBarLayout';
 
 const QUICK_REPLIES = ['💪 let\'s go', 'eat sleep pushup', 'bro how', 'pot\'s growing'];
 
@@ -119,7 +120,9 @@ export default function ChatScreen() {
           style={[
             styles.composer,
             {
-              paddingBottom: keyboardVisible ? Math.max(insets.bottom, 12) : 96,
+              paddingBottom: keyboardVisible
+                ? Math.max(insets.bottom, 12)
+                : getChatComposerTabBarPadding(insets.bottom),
             },
           ]}
         >

@@ -6,10 +6,11 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Tabs } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, glows } from '@/theme';
 import { useAppStore } from '@/state/useAppStore';
 import { supabaseConfigured } from '@/lib/supabase';
+import { getFloatingTabBarBottomPadding } from '@/lib/tabBarLayout';
 import { Ionicons } from '@expo/vector-icons';
 
 type TabId = 'index' | 'log' | 'rank' | 'chat' | 'you';
@@ -62,6 +63,7 @@ function TabButton({
 }
 
 function FloatingTabBar({ state, navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -79,7 +81,7 @@ function FloatingTabBar({ state, navigation }: any) {
   if (keyboardVisible) return null;
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safe}>
+    <View style={[styles.safe, { paddingBottom: getFloatingTabBarBottomPadding(insets.bottom) }]}>
       <View style={styles.bar}>
         {state.routes
           .filter((r: any) => ORDER.includes(r.name as TabId))
@@ -98,7 +100,7 @@ function FloatingTabBar({ state, navigation }: any) {
             );
           })}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -144,7 +146,6 @@ const styles = StyleSheet.create({
   },
   bar: {
     marginHorizontal: 12,
-    marginBottom: Platform.select({ ios: 6, android: 12 }),
     backgroundColor: colors.panel,
     borderRadius: radius.pill,
     borderWidth: 1,

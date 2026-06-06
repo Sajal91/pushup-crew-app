@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react';
 import { ScrollView, View, StyleSheet, ScrollViewProps } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { colors } from '@/theme';
+import { getScreenTabBarPadding } from '@/lib/tabBarLayout';
 
 type Props = ScrollViewProps & {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export function ScreenContainer({
   fadeOnFocus = false,
   ...rest
 }: Props) {
+  const insets = useSafeAreaInsets();
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
 
@@ -42,7 +44,11 @@ export function ScreenContainer({
   const scroll = (
     <ScrollView
       {...rest}
-      contentContainerStyle={[styles.content, contentContainerStyle]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: getScreenTabBarPadding(insets.bottom) },
+        contentContainerStyle,
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <View>{children}</View>
@@ -70,6 +76,5 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 8,
-    paddingBottom: 140,
   },
 });
