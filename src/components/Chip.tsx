@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle } from 'react-native';
 import { colors, fonts, radius } from '@/theme';
+import { withTapSound } from '@/lib/tapSound';
 
 type Props = {
   label: string;
@@ -12,7 +13,7 @@ type Props = {
 export function Chip({ label, selected, onPress, style }: Props) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onPress ? withTapSound(onPress) : undefined}
       style={({ pressed }) => [
         styles.base,
         selected && styles.selected,

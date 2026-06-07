@@ -11,6 +11,7 @@ import { colors, fonts, radius, glows } from '@/theme';
 import { useAppStore } from '@/state/useAppStore';
 import { supabaseConfigured } from '@/lib/supabase';
 import { getFloatingTabBarBottomPadding } from '@/lib/tabBarLayout';
+import { withTapSound } from '@/lib/tapSound';
 import { Ionicons } from '@expo/vector-icons';
 
 type TabId = 'index' | 'log' | 'rank' | 'chat' | 'you';
@@ -32,7 +33,7 @@ function TabButton({
 }: {
   focused: boolean;
   label: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
+  onPress: (event: import('react-native').GestureResponderEvent) => void;
 }) {
   const scale = useSharedValue(focused ? 1 : 0.92);
 
@@ -95,7 +96,7 @@ function FloatingTabBar({ state, navigation }: any) {
                 key={route.key}
                 focused={focused}
                 label={label}
-                onPress={() => navigation.navigate(route.name)}
+                onPress={withTapSound(() => navigation.navigate(route.name))}
               />
             );
           })}

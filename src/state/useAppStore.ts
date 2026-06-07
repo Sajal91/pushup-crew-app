@@ -13,6 +13,7 @@ import {
   insertChatMessage,
   insertPushupLog,
   memberFromPersonalStats,
+  updateMyDailyGoal,
   type AccountStatus,
   type CrewSnapshot,
   type PersonalStats,
@@ -59,7 +60,7 @@ type AppState = {
   clearAuthProfile: () => void;
   setName: (name: string) => void;
   confirmProfileName: (name: string) => Promise<void>;
-  setDailyGoal: (goal: number) => void;
+  setDailyGoal: (goal: number) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
   applyCrewSnapshot: (snapshot: CrewSnapshot) => void;
@@ -230,11 +231,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     await AsyncStorage.setItem(NAME_CONFIRMED_KEY, '1');
   },
 
-  setDailyGoal: (goal) =>
+  setDailyGoal: async (goal) => {
+    const savedGoal = supabaseConfigured ? await updateMyDailyGoal(goal) : goal;
     set((state) => ({
-      dailyGoal: goal,
-      crew: state.crew.map((m) => (m.id === state.meId || m.isMe ? { ...m, dailyGoal: goal } : m)),
-    })),
+      dailyGoal: savedGoal,
+      crew: state.crew.map((m) => (m.id === state.meId || m.isMe ? { ...m, dailyGoal: savedGoal } : m)),
+    }));
+    const me = get().crew.find((m) => m.id === get().meId || m.isMe);
+    void syncDailyGoalReminder(me, savedGoal);
+  },
 
   completeOnboarding: async () => {
     await AsyncStorage.setItem(ONBOARDED_KEY, '1');
@@ -287,13 +292,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         (m) =>
           m.id === state.meId || m.isMe
             ? {
-                ...m,
-                ...personal,
-                today: 0,
-                week: 0,
-                dailyStats: emptySevenDayStats(),
-                dailyGoal: stats.dailyGoal ?? m.dailyGoal,
-              }
+              ...m,
+              ...personal,
+              today: 0,
+              week: 0,
+              dailyStats: emptySevenDayStats(),
+              dailyGoal: stats.dailyGoal ?? m.dailyGoal,
+            }
             : m,
       ),
     });
@@ -306,15 +311,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         state.image ||
         state.crew.find((m) => m.id === state.meId || m.isMe)?.image ||
         '';
-      const currentMeDailyGoal =
-        state.dailyGoal ||
-        state.crew.find((m) => m.id === state.meId || m.isMe)?.dailyGoal;
+      const profileDailyGoal = snapshot.dailyGoal;
       const members = snapshot.members.map((m) =>
         m.isMe
           ? {
               ...m,
               image: m.image || currentMeImage,
-              dailyGoal: m.dailyGoal ?? currentMeDailyGoal,
+              dailyGoal: profileDailyGoal,
             }
           : m,
       );
@@ -323,14 +326,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         crewMeta: snapshot.crew,
         crew: members,
         chat: snapshot.chat,
-        dailyGoal: snapshot.dailyGoal,
+        dailyGoal: profileDailyGoal,
         crewSyncState: 'ready',
         ...(me
           ? {
               meId: me.id,
               name: me.name,
               image: me.image || currentMeImage,
-              dailyGoal: me.dailyGoal ?? currentMeDailyGoal ?? state.dailyGoal,
+              dailyGoal: profileDailyGoal,
             }
           : {}),
       };
@@ -404,18 +407,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       crew: crew.map((m) =>
         m.id === meId
           ? {
-              ...m,
-              today: m.today + count,
-              week: m.week + count,
-              total: m.total + count,
-              dailyStats: addToTodayStats(m.dailyStats, count),
-              xp: newXp,
-              level: levelFromXp(newXp),
-              streak:
-                m.today < (m.dailyGoal ?? dailyGoal) && m.today + count >= (m.dailyGoal ?? dailyGoal)
-                  ? m.streak + 1
-                  : m.streak,
-            }
+            ...m,
+            today: m.today + count,
+            week: m.week + count,
+            total: m.total + count,
+            dailyStats: addToTodayStats(m.dailyStats, count),
+            xp: newXp,
+            level: levelFromXp(newXp),
+            streak:
+              m.today < (m.dailyGoal ?? dailyGoal) && m.today + count >= (m.dailyGoal ?? dailyGoal)
+                ? m.streak + 1
+                : m.streak,
+          }
           : m,
       ),
       levelUpEvent: leveledUp ? Date.now() : get().levelUpEvent,

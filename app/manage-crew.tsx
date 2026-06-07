@@ -20,6 +20,7 @@ import {
 import { clampDisplayName } from '@/lib/displayName';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
+import { withTapSound } from '@/lib/tapSound';
 
 type Mode = 'join' | 'create';
 
@@ -133,7 +134,7 @@ export default function ManageCrewScreen() {
         </>
       }
     >
-      <Pressable onPress={() => router.back()} style={styles.back} hitSlop={12}>
+      <Pressable onPress={withTapSound(() => router.back())} style={styles.back} hitSlop={12}>
         <Ionicons name="chevron-back" size={22} color={colors.dim} />
         <Text style={styles.backLabel}>BACK</Text>
       </Pressable>

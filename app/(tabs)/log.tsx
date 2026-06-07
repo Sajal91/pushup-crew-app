@@ -15,7 +15,7 @@ import {
 } from '@/components/LogCelebrationOverlay';
 import { useAppStore, selectMe } from '@/state/useAppStore';
 import { XP_PER_PUSHUP } from '@/lib/mechanics';
-import { playTapSound, preloadTapSound } from '@/lib/tapSound';
+import { withTapSound } from '@/lib/tapSound';
 
 const QUICK = [10, 20, 30, 50];
 
@@ -29,7 +29,6 @@ export default function LogScreen() {
   const navigateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    preloadTapSound();
     return () => {
       if (navigateTimer.current) clearTimeout(navigateTimer.current);
     };
@@ -53,7 +52,6 @@ export default function LogScreen() {
 
   const submit = () => {
     if (count <= 0 || isLogging) return;
-    playTapSound();
     logPushups(count);
     setIsLogging(true);
     navigateTimer.current = setTimeout(() => {
@@ -84,7 +82,7 @@ export default function LogScreen() {
           ].map((b) => (
             <Pressable
               key={b.l}
-              onPress={() => bump(b.d)}
+              onPress={withTapSound(() => bump(b.d))}
               disabled={isLogging}
               style={({ pressed }) => [
                 styles.dial,

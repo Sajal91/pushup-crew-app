@@ -18,6 +18,7 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { useAppStore } from '@/state/useAppStore';
 import type { ChatMessage } from '@/types';
 import { getChatComposerTabBarPadding } from '@/lib/tabBarLayout';
+import { withTapSound } from '@/lib/tapSound';
 
 const QUICK_REPLIES = ['💪 let\'s go', 'eat sleep pushup', 'bro how', 'pot\'s growing'];
 
@@ -110,7 +111,7 @@ export default function ChatScreen() {
           contentContainerStyle={styles.quickRow}
         >
           {QUICK_REPLIES.map((q) => (
-            <Pressable key={q} onPress={() => sendChat(q)} style={styles.quickChip}>
+            <Pressable key={q} onPress={withTapSound(() => sendChat(q))} style={styles.quickChip}>
               <Text style={styles.quickLabel}>{q}</Text>
             </Pressable>
           ))}
@@ -134,7 +135,7 @@ export default function ChatScreen() {
             style={styles.input}
             onSubmitEditing={send}
           />
-          <Pressable onPress={send} style={styles.sendBtn}>
+          <Pressable onPress={withTapSound(send)} style={styles.sendBtn}>
             <Text style={styles.sendArrow}>↑</Text>
           </Pressable>
         </View>

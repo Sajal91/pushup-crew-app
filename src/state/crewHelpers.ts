@@ -67,7 +67,7 @@ export function ensureMeInCrew(
           id: meId,
           name: display,
           image: image ?? m.image,
-          dailyGoal: dailyGoal ?? m.dailyGoal,
+          dailyGoal: dailyGoal !== undefined ? dailyGoal : m.dailyGoal,
           isMe: true,
         }
       : { ...m, isMe: false },

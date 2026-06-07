@@ -20,7 +20,6 @@ import {
   type CrewPreview,
 } from '@/lib/crewDb';
 import { clampDisplayName } from '@/lib/displayName';
-import { playTapSound } from '@/lib/tapSound';
 import * as Clipboard from 'expo-clipboard';
 
 type Mode = 'join' | 'create';
@@ -92,7 +91,6 @@ export default function CrewStep() {
 
   const handleContinue = async () => {
     if (!canContinue || submitting) return;
-    playTapSound();
     setError(null);
 
     if (!supabaseConfigured) {

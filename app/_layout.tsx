@@ -24,6 +24,7 @@ import { PushNotificationsSetup } from '@/components/PushNotificationsSetup';
 import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
 import { scheduleTestNotification } from '@/lib/notifications';
+import { preloadTapSound } from '@/lib/tapSound';
 
 if (__DEV__) {
   scheduleTestNotification(10)
@@ -33,6 +34,10 @@ SplashScreen.preventAutoHideAsync().catch(() => { });
 
 function RootNavigator() {
   const [antonLoaded] = useAnton({ Anton_400Regular });
+
+  useEffect(() => {
+    preloadTapSound();
+  }, []);
   const [interLoaded] = useInter({
     Inter_400Regular,
     Inter_500Medium,

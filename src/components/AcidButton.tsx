@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, PressableProps } from 'react-native';
 import { colors, fonts, radius, glows } from '@/theme';
+import { withTapSound } from '@/lib/tapSound';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -9,6 +10,8 @@ type Props = Omit<PressableProps, 'style'> & {
   variant?: Variant;
   disabled?: boolean;
   fullWidth?: boolean;
+  /** Skip tap sound (e.g. not needed when wrapped elsewhere). */
+  silent?: boolean;
   style?: ViewStyle;
 };
 
@@ -17,7 +20,9 @@ export function AcidButton({
   variant = 'primary',
   disabled,
   fullWidth = true,
+  silent = false,
   style,
+  onPress,
   ...rest
 }: Props) {
   const isPrimary = variant === 'primary';
@@ -28,6 +33,7 @@ export function AcidButton({
     <Pressable
       {...rest}
       disabled={disabled}
+      onPress={disabled ? undefined : silent ? onPress : withTapSound(onPress)}
       style={({ pressed }) => [
         styles.base,
         fullWidth && { alignSelf: 'stretch' },

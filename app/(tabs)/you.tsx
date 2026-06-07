@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Panel } from '@/components/Panel';
@@ -20,7 +21,7 @@ import {
 } from '@/lib/mechanics';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { playTapSound, preloadTapSound } from '@/lib/tapSound';
+import { withTapSound } from '@/lib/tapSound';
 
 type Badge = {
   id: string;
@@ -36,20 +37,33 @@ export default function YouScreen() {
   const inviteCode = useAppStore(getCrewInviteCode);
   const crewMeta = useAppStore((s) => s.crewMeta);
   const clearCrew = useAppStore((s) => s.clearCrew);
+  const dailyGoal = useAppStore((s) => s.dailyGoal);
+  const setDailyGoal = useAppStore((s) => s.setDailyGoal);
+  const syncCrewFromDb = useAppStore((s) => s.syncCrewFromDb);
   const [signingOut, setSigningOut] = useState(false);
   const [leavingCrew, setLeavingCrew] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const hasCrew = Boolean(crewMeta.id);
+  const [goalInput, setGoalInput] = useState(String(dailyGoal));
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [goalError, setGoalError] = useState<string | null>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (supabaseConfigured) {
+        void syncCrewFromDb();
+      }
+    }, [syncCrewFromDb]),
+  );
 
   useEffect(() => {
-    preloadTapSound();
-  }, []);
+    setGoalInput(String(dailyGoal));
+  }, [dailyGoal]);
 
   if (!me) return null;
 
   const handleSignOut = async () => {
     if (signingOut) return;
-    playTapSound();
     setSigningOut(true);
     try {
       await signOut();
@@ -115,6 +129,27 @@ export default function YouScreen() {
     );
   };
 
+  const parsedGoal = Number.parseInt(goalInput, 10);
+  const requestedGoal = Number.isNaN(parsedGoal) || parsedGoal <= 0 ? null : parsedGoal;
+  const isDailyGoalApplyButtonDisabled =
+    goalSaving || requestedGoal === null || requestedGoal === dailyGoal;
+
+  const handleApplyDailyGoal = async () => {
+    if (isDailyGoalApplyButtonDisabled || requestedGoal === null) return;
+
+    setGoalSaving(true);
+    setGoalError(null);
+    try {
+      await setDailyGoal(requestedGoal);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not save daily goal.';
+      setGoalError(message);
+      Alert.alert('Could not save daily goal', message);
+    } finally {
+      setGoalSaving(false);
+    }
+  };
+
   return (
     <ScreenContainer fadeOnFocus>
       <Panel pad="lg" style={styles.profileCard}>
@@ -143,7 +178,7 @@ export default function YouScreen() {
 
           <TouchableOpacity
             style={styles.inviteChip}
-            onPress={handleCopyInvite}
+            onPress={withTapSound(handleCopyInvite)}
           >
             <Text style={styles.inviteCode}>
               {inviteCode}
@@ -166,6 +201,33 @@ export default function YouScreen() {
         <Text style={styles.xpText}>
           {inLevel} / {nextLevelXp} XP
         </Text>
+
+        <Text style={styles.goalLabel}>DAILY GOAL</Text>
+
+        <View style={styles.goalRow}>
+          <TextInput
+            style={styles.goalInput}
+            keyboardType="numeric"
+            value={goalInput}
+            onChangeText={(text) => {
+              setGoalError(null);
+              setGoalInput(text.replace(/\D/g, ''));
+            }}
+            placeholder="Goal"
+            placeholderTextColor={colors.dim}
+          />
+
+          <TouchableOpacity
+            style={[styles.applyBtn, isDailyGoalApplyButtonDisabled && styles.applyBtnDisabled]}
+            disabled={isDailyGoalApplyButtonDisabled}
+            onPress={withTapSound(handleApplyDailyGoal)}
+          >
+            <Text style={[styles.applyBtnText, isDailyGoalApplyButtonDisabled && styles.applyBtnTextDisabled]}>
+              {goalSaving ? 'SAVING...' : isDailyGoalApplyButtonDisabled ? 'APPLIED' : 'APPLY'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {goalError ? <Text style={styles.goalError}>{goalError}</Text> : null}
       </Panel>
 
       <View style={[styles.grid, { paddingHorizontal: spacing.screen, marginTop: 12 }]}>
@@ -220,7 +282,7 @@ export default function YouScreen() {
 
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={() => router.push('/manage-crew')}
+            onPress={withTapSound(() => router.push('/manage-crew'))}
           >
             <Text style={styles.menuLabel}>
               Manage Crew
@@ -235,7 +297,7 @@ export default function YouScreen() {
 
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={handleCopyInvite}
+            onPress={withTapSound(handleCopyInvite)}
           >
             <Text style={styles.menuLabel}>
               Invite Members
@@ -250,7 +312,7 @@ export default function YouScreen() {
 
           <TouchableOpacity
             style={styles.menuRow}
-            onPress={handleLeaveCrew}
+            onPress={withTapSound(handleLeaveCrew)}
           >
             <Text style={styles.leaveLabel}>
               Leave Crew
@@ -291,6 +353,62 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  goalLabel: {
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.dim,
+    letterSpacing: 1,
+  },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  goalInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.acid,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    color: colors.text,
+    fontSize: 16,
+    backgroundColor: colors.panel,
+  },
+  applyBtn: {
+    backgroundColor: colors.acid,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  applyBtnDisabled: {
+    backgroundColor: colors.panel,
+    borderWidth: 1,
+    borderColor: colors.text,
+    opacity: 0.5,
+  },
+  applyBtnText: {
+    color: '#000',
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  applyBtnTextDisabled: {
+    color: colors.dim
+  },
+  goalError: {
+    marginTop: 8,
+    color: colors.blood,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',

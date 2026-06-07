@@ -87,7 +87,7 @@ begin
   end if;
 
   update public.profiles
-  set daily_goal = greatest(20, least(300, p_daily_goal))
+  set daily_goal = p_daily_goal
   where id = auth.uid()
   returning * into v_row;
 

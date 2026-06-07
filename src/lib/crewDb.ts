@@ -282,12 +282,17 @@ export async function confirmMyProfileName(name: string, dailyGoal = 100): Promi
   if (error) throw new Error(mapRpcError(error));
 }
 
-export async function updateMyDailyGoal(dailyGoal: number): Promise<void> {
+export async function updateMyDailyGoal(dailyGoal: number): Promise<number> {
   const client = requireClient();
-  const { error } = await client.rpc('update_my_daily_goal', {
+  const { data, error } = await client.rpc('update_my_daily_goal', {
     p_daily_goal: dailyGoal,
   });
   if (error) throw new Error(mapRpcError(error));
+  const row = data as { daily_goal?: number | null } | null;
+  if (row?.daily_goal != null) {
+    return Number(row.daily_goal);
+  }
+  return dailyGoal;
 }
 
 export async function previewCrewByInviteCode(code: string): Promise<CrewPreview | null> {

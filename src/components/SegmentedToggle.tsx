@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Pressable, Text, StyleSheet } from 'react-native';
 import { colors, fonts, radius } from '@/theme';
+import { withTapSound } from '@/lib/tapSound';
 
 type Option<T extends string> = { value: T; label: string };
 
@@ -18,7 +19,7 @@ export function SegmentedToggle<T extends string>({ options, value, onChange }: 
         return (
           <Pressable
             key={opt.value}
-            onPress={() => onChange(opt.value)}
+            onPress={withTapSound(() => onChange(opt.value))}
             style={({ pressed }) => [
               styles.segment,
               active && styles.segmentActive,

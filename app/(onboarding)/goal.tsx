@@ -10,9 +10,7 @@ import { HeroNumber } from '@/components/HeroNumber';
 import { Chip } from '@/components/Chip';
 import { useAppStore } from '@/state/useAppStore';
 import { DEFAULT_DAILY_GOAL } from '@/lib/mechanics';
-import { updateMyDailyGoal } from '@/lib/crewDb';
-import { supabaseConfigured } from '@/lib/supabase';
-import { playTapSound } from '@/lib/tapSound';
+import { withTapSound } from '@/lib/tapSound';
 
 const PRESETS = [50, 100, 150, 200];
 
@@ -26,18 +24,14 @@ export default function GoalStep() {
   const [error, setError] = useState<string | null>(null);
 
   // Step buttons act as a +/- coarse slider (real slider would need @react-native-community/slider)
-  const bump = (delta: number) => setGoal((g) => Math.max(20, Math.min(300, g + delta)));
+  const bump = (delta: number) => setGoal((g) => Math.max(1, g + delta));
 
   const handleContinue = async () => {
     if (saving) return;
-    playTapSound();
     setSaving(true);
     setError(null);
     try {
-      setDailyGoal(goal);
-      if (supabaseConfigured) {
-        await updateMyDailyGoal(goal);
-      }
+      await setDailyGoal(goal);
       await completeOnboarding();
       router.replace('/(tabs)');
     } catch (err) {
@@ -68,16 +62,16 @@ export default function GoalStep() {
       </Panel>
 
       <View style={styles.stepRow}>
-        <Pressable style={styles.stepBtn} onPress={() => bump(-10)}>
+        <Pressable style={styles.stepBtn} onPress={withTapSound(() => bump(-10))}>
           <Text style={styles.stepLabel}>−10</Text>
         </Pressable>
-        <Pressable style={styles.stepBtn} onPress={() => bump(-1)}>
+        <Pressable style={styles.stepBtn} onPress={withTapSound(() => bump(-1))}>
           <Text style={styles.stepLabel}>−1</Text>
         </Pressable>
-        <Pressable style={styles.stepBtn} onPress={() => bump(1)}>
+        <Pressable style={styles.stepBtn} onPress={withTapSound(() => bump(1))}>
           <Text style={styles.stepLabel}>+1</Text>
         </Pressable>
-        <Pressable style={styles.stepBtn} onPress={() => bump(10)}>
+        <Pressable style={styles.stepBtn} onPress={withTapSound(() => bump(10))}>
           <Text style={styles.stepLabel}>+10</Text>
         </Pressable>
       </View>
