@@ -2,8 +2,16 @@
 // align column names with these and add a /lib/db.ts mapper.
 
 export type DailyStat = {
-  day: string; // YYYY-MM-DD in UTC
+  day: string; // YYYY-MM-DD in the app calendar timezone
   count: number;
+};
+
+export type PushupLog = {
+  id: number | string;
+  userId: string;
+  crewId: string | null;
+  count: number;
+  loggedAt: string;
 };
 
 export type CrewMember = {

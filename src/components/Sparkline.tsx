@@ -22,7 +22,7 @@ export function Sparkline({
 }: Props) {
   if (data.length === 0) return null;
 
-  const barW = (width - gap * (data.length - 1)) / data.length;
+  const barW = ((width - gap * (data.length - 1)) / data.length) * 1;
   const max = Math.max(...data.map((p) => p.v ?? 0), 1);
 
   return (
@@ -30,10 +30,24 @@ export function Sparkline({
       {data.map((p, i) => {
         const x = i * (barW + gap);
         const isPending = p.v == null;
-        const bh = isPending ? 4 : ((p.v as number) / max) * (height - 14);
-        const fy = height - bh - 14;
+        const topPadding = 16;   // space for value labels
+        const bottomPadding = 14; // space for dates
+        const chartHeight = height - topPadding - bottomPadding;
+        const bh = isPending ? 4 : ((p.v as number) / max) * chartHeight;
+        const fy = height - bottomPadding - bh;
+
         return (
           <G key={i}>
+            <SvgText
+              x={x + barW / 2}
+              y={fy - 4}
+              textAnchor="middle"
+              fontSize="9"
+              fontFamily={fonts.mono}
+              fill={color}
+            >
+              {p.v}
+            </SvgText>
             <Rect
               x={x}
               y={fy}

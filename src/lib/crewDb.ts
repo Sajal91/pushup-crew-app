@@ -1,4 +1,4 @@
-import type { ChatMessage, Crew, CrewMember, DailyStat } from '@/types';
+import type { ChatMessage, Crew, CrewMember, DailyStat, PushupLog } from '@/types';
 import { mapAccountStatus, type AccountStatus } from '@/lib/accountStatus';
 import { XP_PER_PUSHUP, levelFromXp, nowHHMM } from '@/lib/mechanics';
 import { supabase } from '@/lib/supabase';
@@ -77,6 +77,14 @@ export type DbChatMessage = {
   created_at: string;
 };
 
+type DbPushupLog = {
+  id: number;
+  user_id: string;
+  crew_id: string | null;
+  count: number;
+  logged_at: string;
+};
+
 function requireClient() {
   if (!supabase) throw new Error('Supabase is not configured');
   return supabase;
@@ -142,6 +150,16 @@ export function mapDbChatMessage(row: DbChatMessage): ChatMessage {
     who: row.user_id,
     t: formatChatTime(row.created_at),
     text: row.text,
+  };
+}
+
+function mapDbPushupLog(row: DbPushupLog): PushupLog {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    crewId: row.crew_id,
+    count: Number(row.count) || 0,
+    loggedAt: row.logged_at,
   };
 }
 
@@ -369,6 +387,21 @@ export async function fetchMyCrewSnapshot(userId?: string): Promise<CrewSnapshot
   if (!meId) return null;
 
   return mapSnapshotToState(data as DbSnapshot, meId);
+}
+
+export async function fetchCrewPushupLogs(crewId: string): Promise<PushupLog[]> {
+  const client = requireClient();
+  const since = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await client
+    .from('pushup_logs')
+    .select('id, user_id, crew_id, count, logged_at')
+    .eq('crew_id', crewId)
+    .gte('logged_at', since)
+    .order('logged_at', { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  return ((data ?? []) as DbPushupLog[]).map(mapDbPushupLog);
 }
 
 export async function insertPushupLog(crewId: string, count: number): Promise<void> {

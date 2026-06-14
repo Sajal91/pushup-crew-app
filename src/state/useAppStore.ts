@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AppScreen, ChatMessage, Crew, CrewMember, DailyStat } from '@/types';
+import type { AppScreen, ChatMessage, Crew, CrewMember, DailyStat, PushupLog } from '@/types';
 import { SEED_CREW, SEED_CHAT, SEED_CREW_META } from './seed';
 import { EMPTY_CREW, EMPTY_CREW_META, EMPTY_CHAT } from './emptyCrew';
 import { XP_PER_PUSHUP, nowHHMM, DEFAULT_DAILY_GOAL, levelFromXp } from '@/lib/mechanics';
@@ -8,6 +8,7 @@ import { clampDisplayName } from '@/lib/displayName';
 import { supabaseConfigured } from '@/lib/supabase';
 import {
   confirmMyProfileName,
+  fetchCrewPushupLogs,
   fetchMyCrewSnapshot,
   fetchMyPersonalStats,
   insertChatMessage,
@@ -46,6 +47,7 @@ type AppState = {
   crew: CrewMember[];
   crewMeta: Crew;
   chat: ChatMessage[];
+  pushupLogs: PushupLog[];
   meId: string;
   crewSyncState: CrewSyncState;
 
@@ -144,6 +146,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   crew: INITIAL_CREW,
   crewMeta: INITIAL_CREW_META,
   chat: INITIAL_CHAT,
+  pushupLogs: [],
   meId: supabaseConfigured ? '' : 'nik',
   crewSyncState: supabaseConfigured ? 'idle' : 'ready',
 
@@ -204,6 +207,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       crew: INITIAL_CREW,
       crewMeta: INITIAL_CREW_META,
       chat: INITIAL_CHAT,
+      pushupLogs: [],
       crewSyncState: supabaseConfigured ? 'idle' : 'ready',
       onboarded: false,
       nameConfirmed: false,
@@ -260,6 +264,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       crew: INITIAL_CREW,
       crewMeta: INITIAL_CREW_META,
       chat: INITIAL_CHAT,
+      pushupLogs: [],
       crewSyncState: supabaseConfigured ? 'idle' : 'ready',
     });
   },
@@ -277,6 +282,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       crew: state.meId ? [me] : INITIAL_CREW,
       crewMeta: INITIAL_CREW_META,
       chat: INITIAL_CHAT,
+      pushupLogs: [],
       crewSyncState: supabaseConfigured ? 'idle' : 'ready',
     });
   },
@@ -361,6 +367,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         const snapshot = await fetchMyCrewSnapshot(meId || undefined);
         if (snapshot) {
           get().applyCrewSnapshot(snapshot);
+          try {
+            const pushupLogs = await fetchCrewPushupLogs(snapshot.crew.id);
+            set({ pushupLogs });
+          } catch (err) {
+            if (__DEV__) console.warn('[crew] Failed to sync pushup logs:', err);
+          }
           return;
         }
 
@@ -368,6 +380,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (personal) {
           get().applyPersonalStats(personal);
         }
+        set({ pushupLogs: [] });
 
         const state = get();
         if (state.meId) {
@@ -403,26 +416,37 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const crewId = get().crewMeta.id;
 
-    set({
+    const optimisticLog: PushupLog | null = crewId
+      ? {
+          id: `local-${Date.now()}`,
+          userId: meId,
+          crewId,
+          count,
+          loggedAt: new Date().toISOString(),
+        }
+      : null;
+
+    set((state) => ({
       crew: crew.map((m) =>
         m.id === meId
           ? {
-            ...m,
-            today: m.today + count,
-            week: m.week + count,
-            total: m.total + count,
-            dailyStats: addToTodayStats(m.dailyStats, count),
-            xp: newXp,
-            level: levelFromXp(newXp),
-            streak:
-              m.today < (m.dailyGoal ?? dailyGoal) && m.today + count >= (m.dailyGoal ?? dailyGoal)
-                ? m.streak + 1
-                : m.streak,
-          }
+              ...m,
+              today: m.today + count,
+              week: m.week + count,
+              total: m.total + count,
+              dailyStats: addToTodayStats(m.dailyStats, count),
+              xp: newXp,
+              level: levelFromXp(newXp),
+              streak:
+                m.today < (m.dailyGoal ?? dailyGoal) && m.today + count >= (m.dailyGoal ?? dailyGoal)
+                  ? m.streak + 1
+                  : m.streak,
+            }
           : m,
       ),
+      pushupLogs: optimisticLog ? [...state.pushupLogs, optimisticLog] : state.pushupLogs,
       levelUpEvent: leveledUp ? Date.now() : get().levelUpEvent,
-    });
+    }));
 
     const updatedMe = get().crew.find((m) => m.id === meId) ?? get().crew.find((m) => m.isMe);
     void syncDailyGoalReminder(updatedMe, get().dailyGoal);
