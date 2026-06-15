@@ -9,7 +9,8 @@ import { HeroNumber } from '@/components/HeroNumber';
 import { AcidButton } from '@/components/AcidButton';
 import { ProgressBar } from '@/components/ProgressBar';
 import { useAppStore, selectMe, selectRankedByToday } from '@/state/useAppStore';
-import { DEFAULT_DAILY_GOAL, formatEuro } from '@/lib/mechanics';
+import { SkipPotPanel } from '@/components/SkipPotPanel';
+import { DEFAULT_DAILY_GOAL } from '@/lib/mechanics';
 
 export default function Home() {
   const router = useRouter();
@@ -30,6 +31,8 @@ export default function Home() {
   const leading = leader.id === me.id;
   const behind = leading ? 0 : leader.today - me.today;
   const weekTotal = me.week;
+
+  const skipSummary = ranked.filter((m) => (m.skipDays ?? 0) > 0).map((m) => `${m.name} ${m.skipDays}`).join(', ');
 
   return (
     <ScreenContainer fadeOnFocus>
@@ -113,14 +116,15 @@ export default function Home() {
           <Text style={styles.challengeHeadline}>{weeklyGoal} IN 7 DAYS</Text>
           <View style={[styles.rowBetween, { marginTop: 10 }]}>
             <Text style={styles.challengeMeta}>{weekTotal} / {weeklyGoal}</Text>
-            <Text style={[styles.challengeMeta, { color: colors.blood }]}>
-              — {formatEuro(crewMeta.skipPotCents)} IN THE POT
-            </Text>
           </View>
           <View style={{ marginTop: 10 }}>
             <ProgressBar progress={weekTotal / weeklyGoal} height={6} glow />
           </View>
         </Panel>
+      </View>
+
+      <View style={[styles.section, { marginTop: 16, marginBottom: 8 }]}>
+        <SkipPotPanel skipPotCents={crewMeta.skipPotCents} skipSummary={skipSummary} />
       </View>
     </ScreenContainer>
   );

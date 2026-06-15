@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Panel } from '@/components/Panel';
-import { Kicker } from '@/components/Kicker';
 import { Sparkline } from '@/components/Sparkline';
 import { SegmentedToggle } from '@/components/SegmentedToggle';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -13,8 +12,11 @@ import {
   selectRankedByToday,
   selectRankedByWeek,
 } from '@/state/useAppStore';
-import { DEFAULT_DAILY_GOAL, formatEuro, levelFromXp } from '@/lib/mechanics';
+import { SkipPotPanel } from '@/components/SkipPotPanel';
+import { DEFAULT_DAILY_GOAL, formatEuro, levelFromXp, SKIP_PENALTY } from '@/lib/mechanics';
 import type { CrewMember, PushupLog } from '@/types';
+import { HeroNumber } from '@/components/HeroNumber';
+import { Kicker } from '@/components/Kicker';
 
 type Mode = 'today' | 'week';
 type SparkPoint = { d: string; v: number | null };
@@ -117,19 +119,26 @@ export default function RankScreen() {
   const dailyGoal = useAppStore((s) => s.dailyGoal);
   const pushupLogs = useAppStore((s) => s.pushupLogs);
 
-  const skipSummary = ranked
-    .filter((m) => (m.skipDays ?? 0) > 0)
-    .map((m) => `${m.name} ${m.skipDays}`)
-    .join(', ');
-  const potNote = skipSummary
-    ? `Skip days: ${skipSummary}. Each skip = €1.`
-    : 'Each missed daily goal adds €1 to the pot.';
-
   return (
     <ScreenContainer fadeOnFocus>
       <SectionTitle kicker="RANKING">LEADERBOARD</SectionTitle>
 
-      <View style={{ paddingHorizontal: spacing.screen, marginTop: 6 }}>
+      <View style={{ paddingHorizontal: spacing.screen, marginTop: 14 }}>
+        <Panel variant="blood-dashed" pad="md" style={[styles.heroPanel, { display: "flex", justifyContent: "space-between", flexDirection: "row" }]}>
+          <View style={{ display: "flex", flexDirection: "column" }}>
+            <Kicker style={{ marginBottom: 4 }} color={"#e6e783"} >// CREW POT</Kicker>
+            <Text style={styles.stakesLabel}>REAL MONEY · €{SKIP_PENALTY} PER SKIP</Text>
+          </View>
+          <View style={styles.amountWrap}>
+            <Text style={{ fontSize: 36, color: "#e6e783", fontWeight: "500", fontFamily: fonts.display }}>
+              {formatEuro(crewMeta.skipPotCents)}
+            </Text>
+          </View>
+          {/* <Text style={styles.note}>{note}</Text> */}
+        </Panel>
+      </View>
+
+      <View style={{ paddingHorizontal: spacing.screen, marginTop: 14 }}>
         <SegmentedToggle
           value={mode}
           onChange={setMode}
@@ -210,14 +219,6 @@ export default function RankScreen() {
           );
         })}
       </View>
-
-      <View style={{ paddingHorizontal: spacing.screen, marginTop: 18 }}>
-        <Panel variant="blood-dashed" pad="md">
-          <Kicker style={{ color: colors.blood, marginBottom: 6 }}>// SKIP POT</Kicker>
-          <Text style={styles.potValue}>{formatEuro(crewMeta.skipPotCents)}</Text>
-          <Text style={styles.potNote}>{potNote}</Text>
-        </Panel>
-      </View>
     </ScreenContainer>
   );
 }
@@ -267,16 +268,31 @@ const styles = StyleSheet.create({
   hourlyChart: {
     paddingRight: 8,
   },
-  potValue: {
-    fontFamily: fonts.display,
-    fontSize: 28,
+  heroPanel: {
+    ...glows.card,
+    borderWidth: 2,
+    borderColor: "#e6e783"
+  },
+  kicker: {
     color: colors.blood,
   },
-  potNote: {
+  stakesLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: "#e6e783",
+    opacity: 0.85,
+  },
+  amountWrap: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  note: {
     marginTop: 4,
     fontFamily: fonts.mono,
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    lineHeight: 16,
     color: colors.dim,
   },
 });
