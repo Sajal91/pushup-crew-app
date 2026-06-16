@@ -44,6 +44,7 @@ export type Crew = {
   name: string;
   inviteCode: string;
   skipPotCents: number;
+  ownerId?: string;
 };
 
 export type AppScreen = 'home' | 'log' | 'rank' | 'chat' | 'you';

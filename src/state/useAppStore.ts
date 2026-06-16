@@ -15,6 +15,7 @@ import {
   insertPushupLog,
   memberFromPersonalStats,
   updateMyDailyGoal,
+  updateMyCrewName,
   type AccountStatus,
   type CrewSnapshot,
   type PersonalStats,
@@ -63,6 +64,7 @@ type AppState = {
   setName: (name: string) => void;
   confirmProfileName: (name: string) => Promise<void>;
   setDailyGoal: (goal: number) => Promise<void>;
+  setCrewName: (name: string) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
   applyCrewSnapshot: (snapshot: CrewSnapshot) => void;
@@ -243,6 +245,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     const me = get().crew.find((m) => m.id === get().meId || m.isMe);
     void syncDailyGoalReminder(me, savedGoal);
+  },
+
+  setCrewName: async (name) => {
+    const trimmed = name.trim();
+    const savedName = supabaseConfigured ? await updateMyCrewName(trimmed) : trimmed;
+    set((state) => ({
+      crewMeta: { ...state.crewMeta, name: savedName },
+    }));
   },
 
   completeOnboarding: async () => {

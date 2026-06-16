@@ -20,6 +20,7 @@ export const SEED_CREW_META: Crew = {
   name: 'THE BROS',
   inviteCode: 'GAINS-XY42',
   skipPotCents: 300, // €3
+  ownerId: 'nik',
 };
 
 // Deterministic pseudo-week data for sparklines, matches shared.jsx algorithm.

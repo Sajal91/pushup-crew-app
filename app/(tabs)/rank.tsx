@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Panel } from '@/components/Panel';
@@ -114,6 +114,8 @@ function todaySparklineDataFor(member: CrewMember, logs: PushupLog[]): SparkPoin
 
 export default function RankScreen() {
   const [mode, setMode] = useState<Mode>('today');
+  const { width: screenWidth } = useWindowDimensions();
+  const weekSparklineWidth = screenWidth - spacing.screen * 2 - spacing.cardPad * 2;
   const ranked = useAppStore(mode === 'today' ? selectRankedByToday : selectRankedByWeek);
   const crewMeta = useAppStore((s) => s.crewMeta);
   const dailyGoal = useAppStore((s) => s.dailyGoal);
@@ -207,12 +209,15 @@ export default function RankScreen() {
                     />
                   </ScrollView>
                 ) : (
-                  <Sparkline
-                    data={sparklineData}
-                    color={isMe ? colors.acid : colors.acidDim}
-                    width={310}
-                    height={100}
-                  />
+                  <View style={styles.weekChart}>
+                    <Sparkline
+                      data={sparklineData}
+                      color={isMe ? colors.acid : colors.acidDim}
+                      width={weekSparklineWidth}
+                      height={100}
+                      gap={6}
+                    />
+                  </View>
                 )}
               </View>
             </Panel>
@@ -267,6 +272,10 @@ const styles = StyleSheet.create({
   },
   hourlyChart: {
     paddingRight: 8,
+  },
+  weekChart: {
+    width: '100%',
+    overflow: 'hidden',
   },
   heroPanel: {
     ...glows.card,

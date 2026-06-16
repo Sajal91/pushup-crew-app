@@ -34,19 +34,25 @@ export default function YouScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const me = useAppStore(selectMe);
+  const meId = useAppStore((s) => s.meId);
   const inviteCode = useAppStore(getCrewInviteCode);
   const crewMeta = useAppStore((s) => s.crewMeta);
   const clearCrew = useAppStore((s) => s.clearCrew);
   const dailyGoal = useAppStore((s) => s.dailyGoal);
   const setDailyGoal = useAppStore((s) => s.setDailyGoal);
+  const setCrewName = useAppStore((s) => s.setCrewName);
   const syncCrewFromDb = useAppStore((s) => s.syncCrewFromDb);
   const [signingOut, setSigningOut] = useState(false);
   const [leavingCrew, setLeavingCrew] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const hasCrew = Boolean(crewMeta.id);
+  const isCrewOwner = Boolean(crewMeta.ownerId && crewMeta.ownerId === meId);
   const [goalInput, setGoalInput] = useState(String(dailyGoal));
   const [goalSaving, setGoalSaving] = useState(false);
   const [goalError, setGoalError] = useState<string | null>(null);
+  const [crewNameInput, setCrewNameInput] = useState(crewMeta.name);
+  const [crewNameSaving, setCrewNameSaving] = useState(false);
+  const [crewNameError, setCrewNameError] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -59,6 +65,10 @@ export default function YouScreen() {
   useEffect(() => {
     setGoalInput(String(dailyGoal));
   }, [dailyGoal]);
+
+  useEffect(() => {
+    setCrewNameInput(crewMeta.name);
+  }, [crewMeta.name]);
 
   if (!me) return null;
 
@@ -147,6 +157,29 @@ export default function YouScreen() {
       Alert.alert('Could not save daily goal', message);
     } finally {
       setGoalSaving(false);
+    }
+  };
+
+  const trimmedCrewName = crewNameInput.trim();
+  const isCrewNameApplyButtonDisabled =
+    !isCrewOwner ||
+    crewNameSaving ||
+    trimmedCrewName.length === 0 ||
+    trimmedCrewName === crewMeta.name;
+
+  const handleApplyCrewName = async () => {
+    if (isCrewNameApplyButtonDisabled) return;
+
+    setCrewNameSaving(true);
+    setCrewNameError(null);
+    try {
+      await setCrewName(trimmedCrewName);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not save crew name.';
+      setCrewNameError(message);
+      Alert.alert('Could not save crew name', message);
+    } finally {
+      setCrewNameSaving(false);
     }
   };
 
@@ -294,6 +327,52 @@ export default function YouScreen() {
               color={colors.dim}
             />
           </TouchableOpacity>
+
+          <View style={styles.crewNameSection}>
+            <Text style={styles.crewNameLabel}>CREW NAME</Text>
+
+            <View style={styles.crewNameRow}>
+              <TextInput
+                style={[
+                  styles.crewNameInput,
+                  !isCrewOwner && styles.crewNameInputDisabled,
+                ]}
+                value={crewNameInput}
+                onChangeText={(text) => {
+                  if (!isCrewOwner) return;
+                  setCrewNameError(null);
+                  setCrewNameInput(text);
+                }}
+                editable={isCrewOwner}
+                placeholder="Crew name"
+                placeholderTextColor={colors.dim}
+                maxLength={40}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.applyBtn,
+                  isCrewNameApplyButtonDisabled && styles.applyBtnDisabled,
+                ]}
+                disabled={isCrewNameApplyButtonDisabled}
+                onPress={withTapSound(handleApplyCrewName)}
+              >
+                <Text
+                  style={[
+                    styles.applyBtnText,
+                    isCrewNameApplyButtonDisabled && styles.applyBtnTextDisabled,
+                  ]}
+                >
+                  {crewNameSaving ? 'SAVING...' : isCrewNameApplyButtonDisabled ? 'APPLIED' : 'APPLY'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!isCrewOwner ? (
+              <Text style={styles.crewNameHint}>Can only be edited by the owner.</Text>
+            ) : null}
+            {crewNameError ? <Text style={styles.goalError}>{crewNameError}</Text> : null}
+          </View>
 
           <TouchableOpacity
             style={styles.menuRow}
@@ -633,6 +712,52 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 20,
+  },
+
+  crewNameSection: {
+    paddingTop: 16,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+
+  crewNameLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.dim,
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+
+  crewNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  crewNameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.acid,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    color: colors.text,
+    fontSize: 16,
+    backgroundColor: colors.panel,
+  },
+
+  crewNameInputDisabled: {
+    borderColor: colors.border,
+    opacity: 0.6,
+  },
+
+  crewNameHint: {
+    marginTop: 8,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.dim,
+    lineHeight: 18,
   },
 
   menuRow: {

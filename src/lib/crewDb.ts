@@ -46,6 +46,7 @@ type DbSnapshot = {
     name: string;
     invite_code: string;
     skip_pot_cents: number;
+    owner_id?: string | null;
   };
   daily_goal: number;
   members: {
@@ -122,6 +123,8 @@ function mapRpcError(error: { message: string; code?: string }): string {
   if (msg.includes('auth_user_not_ready')) return 'Still signing you in — try again in a moment.';
   if (msg.includes('profiles_id_fkey')) return 'Account not ready yet — wait a moment and try again.';
   if (msg.includes('invalid_invite_code')) return 'Invite code must be at least 4 characters.';
+  if (msg.includes('not_crew_owner')) return 'Only the crew owner can change the crew name.';
+  if (msg.includes('invalid_crew_name')) return 'Crew name cannot be empty.';
   return msg || 'Something went wrong.';
 }
 
@@ -197,6 +200,7 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
     name: snapshot.crew.name,
     inviteCode: snapshot.crew.invite_code,
     skipPotCents: snapshot.crew.skip_pot_cents,
+    ownerId: snapshot.crew.owner_id ?? undefined,
   };
 
   const members: CrewMember[] = (snapshot.members ?? []).map((m) => {
@@ -311,6 +315,19 @@ export async function updateMyDailyGoal(dailyGoal: number): Promise<number> {
     return Number(row.daily_goal);
   }
   return dailyGoal;
+}
+
+export async function updateMyCrewName(crewName: string): Promise<string> {
+  const client = requireClient();
+  const { data, error } = await client.rpc('update_my_crew_name', {
+    p_crew_name: crewName,
+  });
+  if (error) throw new Error(mapRpcError(error));
+  const row = data as { name?: string | null } | null;
+  if (row?.name) {
+    return row.name;
+  }
+  return crewName.trim();
 }
 
 export async function previewCrewByInviteCode(code: string): Promise<CrewPreview | null> {
