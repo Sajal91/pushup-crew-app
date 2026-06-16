@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { colors, fonts, glows, spacing } from '@/theme';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { Panel } from '@/components/Panel';
@@ -23,6 +23,8 @@ type SparkPoint = { d: string; v: number | null };
 
 const APP_TIME_ZONE = 'Europe/Vienna';
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const HOUR_BLOCK_SIZE = 4;
+const HOUR_BLOCKS = 24 / HOUR_BLOCK_SIZE;
 
 function dayLabel(day: string): string {
   const date = new Date(`${day}T12:00:00.000Z`);
@@ -53,8 +55,9 @@ function appDayKey(date: Date): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function hourRangeLabel(hour: number): string {
-  return `${hour} - ${(hour + 1) % 24}`;
+function hourBlockLabel(blockIndex: number): string {
+  const start = blockIndex * HOUR_BLOCK_SIZE;
+  return `${start}-${start + HOUR_BLOCK_SIZE}`;
 }
 
 function weekDays() {
@@ -95,7 +98,7 @@ function weekSparklineDataFor(member: CrewMember, logs: PushupLog[]): SparkPoint
 
 function todaySparklineDataFor(member: CrewMember, logs: PushupLog[]): SparkPoint[] {
   const today = appDayKey(new Date());
-  const buckets = Array.from({ length: 24 }, () => 0);
+  const buckets = Array.from({ length: HOUR_BLOCKS }, () => 0);
 
   logs.forEach((log) => {
     if (log.userId !== member.id) return;
@@ -103,11 +106,11 @@ function todaySparklineDataFor(member: CrewMember, logs: PushupLog[]): SparkPoin
     const parts = appTimeParts(loggedAt);
     const day = `${parts.year}-${parts.month}-${parts.day}`;
     if (day !== today) return;
-    buckets[parts.hour] += log.count;
+    buckets[Math.floor(parts.hour / HOUR_BLOCK_SIZE)] += log.count;
   });
 
-  return buckets.map((count, hour) => ({
-    d: hourRangeLabel(hour),
+  return buckets.map((count, blockIndex) => ({
+    d: hourBlockLabel(blockIndex),
     v: count,
   }));
 }
@@ -115,7 +118,7 @@ function todaySparklineDataFor(member: CrewMember, logs: PushupLog[]): SparkPoin
 export default function RankScreen() {
   const [mode, setMode] = useState<Mode>('today');
   const { width: screenWidth } = useWindowDimensions();
-  const weekSparklineWidth = screenWidth - spacing.screen * 2 - spacing.cardPad * 2;
+  const sparklineWidth = screenWidth - spacing.screen * 2 - spacing.cardPad * 2;
   const ranked = useAppStore(mode === 'today' ? selectRankedByToday : selectRankedByWeek);
   const crewMeta = useAppStore((s) => s.crewMeta);
   const dailyGoal = useAppStore((s) => s.dailyGoal);
@@ -194,31 +197,15 @@ export default function RankScreen() {
                 color={isMe ? colors.acid : colors.acidDim}
               />
               <View style={{ marginTop: 8 }}>
-                {mode === 'today' ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.hourlyChart}
-                  >
-                    <Sparkline
-                      data={sparklineData}
-                      color={isMe ? colors.acid : colors.acidDim}
-                      width={1120}
-                      height={100}
-                      gap={8}
-                    />
-                  </ScrollView>
-                ) : (
-                  <View style={styles.weekChart}>
-                    <Sparkline
-                      data={sparklineData}
-                      color={isMe ? colors.acid : colors.acidDim}
-                      width={weekSparklineWidth}
-                      height={100}
-                      gap={6}
-                    />
-                  </View>
-                )}
+                <View style={styles.sparklineChart}>
+                  <Sparkline
+                    data={sparklineData}
+                    color={isMe ? colors.acid : colors.acidDim}
+                    width={sparklineWidth}
+                    height={100}
+                    gap={6}
+                  />
+                </View>
               </View>
             </Panel>
           );
@@ -270,10 +257,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     color: colors.text,
   },
-  hourlyChart: {
-    paddingRight: 8,
-  },
-  weekChart: {
+  sparklineChart: {
     width: '100%',
     overflow: 'hidden',
   },
