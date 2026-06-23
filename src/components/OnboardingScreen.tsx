@@ -8,6 +8,7 @@ import { preloadTapSound } from '@/lib/tapSound';
 type Props = {
   step?: number;
   totalSteps?: number;
+  scroll?: boolean;
   children: React.ReactNode;
   footer?: React.ReactNode;
 };
@@ -16,7 +17,7 @@ type Props = {
  * Common onboarding chrome: status-area, optional step dots, scrollable content,
  * footer (CTA + optional secondary action).
  */
-export function OnboardingScreen({ step, totalSteps = 2, children, footer }: Props) {
+export function OnboardingScreen({ step, totalSteps = 2, scroll = true, children, footer }: Props) {
   const showDots = step !== undefined;
 
   useEffect(() => {
@@ -36,12 +37,16 @@ export function OnboardingScreen({ step, totalSteps = 2, children, footer }: Pro
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </ScrollView>
+        {scroll ? (
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={[styles.content, styles.contentFill]}>{children}</View>
+        )}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -72,9 +77,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     flexGrow: 1,
   },
+  contentFill: {
+    flex: 1,
+    paddingBottom: 0,
+  },
   footer: {
     paddingHorizontal: spacing.screen,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.screen,
-    gap: 10,
+    gap: 14,
   },
 });

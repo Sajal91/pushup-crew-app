@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, fonts, glows } from '@/theme';
+import { colors, fonts } from '@/theme';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
 import { AcidButton } from '@/components/AcidButton';
 import { Kicker } from '@/components/Kicker';
+import { ClaimPager } from '@/components/ClaimPager';
+import { ClaimDots } from '@/components/ClaimDots';
+import { CLAIMS, pickRandomClaimIndex } from '@/lib/claims';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabaseConfigured } from '@/lib/supabase';
 import CustomGoogleButton from '@/components/CustomGoogleButton';
@@ -13,6 +16,7 @@ export default function Welcome() {
   const router = useRouter();
   const { signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [activeClaimIndex, setActiveClaimIndex] = useState(pickRandomClaimIndex);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -46,25 +50,15 @@ export default function Welcome() {
 
   return (
     <OnboardingScreen
+      scroll={false}
       footer={
         <>
+          <ClaimDots total={CLAIMS.length} active={activeClaimIndex} />
           {supabaseConfigured ? (
-            // <GoogleSigninButton
-            //   aria-label='Continue with Google'
-            //   style={{ width: "100%", height: 70 }}
-            //   color={GoogleSigninButton.Color.Light}
-            //   onPress={handleGoogleSignIn}
-            // />
             <CustomGoogleButton onPress={handleGoogleSignIn} />
           ) : (
-            <AcidButton
-              label="CONTINUE IN DEMO MODE →"
-              onPress={handleDemoContinue}
-            />
+            <AcidButton label="CONTINUE IN DEMO MODE →" onPress={handleDemoContinue} />
           )}
-          {/* {signingIn ? (
-            <ActivityIndicator color={colors.acid} style={{ marginTop: 8 }} />
-          ) : null} */}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {!supabaseConfigured ? (
             <Text style={styles.hint}>
@@ -74,47 +68,28 @@ export default function Welcome() {
         </>
       }
     >
-      <Kicker style={{ marginTop: 28, marginBottom: 24 }}>// PUSHUPCREW / V1.0</Kicker>
-      <Text style={styles.headline}>EAT.</Text>
-      <Text style={styles.headline}>SLEEP.</Text>
-      <Text style={[styles.headline, styles.headlineAcid]}>PUSHUP.</Text>
-      <Text style={styles.headline}>REPEAT.</Text>
-      <Text style={styles.subheadStrong}>Skip a day → €1 in the pot.</Text>
+      <Kicker style={styles.kicker}>// PUSHUPCREW / V1.0</Kicker>
+      <View style={styles.claimArea}>
+        <ClaimPager
+          initialIndex={activeClaimIndex}
+          autoScroll
+          onActiveIndexChange={setActiveClaimIndex}
+        />
+      </View>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  headline: {
-    fontFamily: fonts.display,
-    fontSize: 90,
-    lineHeight: 96,
-    paddingTop: 8,
-    color: colors.text,
-    letterSpacing: -1,
-  },
-  headlineAcid: {
-    color: colors.acid,
-    ...glows.acidText,
-  },
-  subhead: {
+  kicker: {
     marginTop: 28,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.dim,
+    marginBottom: 24,
   },
-  subheadStrong: {
-    color: colors.blood,
-    paddingLeft: 5,
-    fontFamily: fonts.bodySemi,
-  },
-  note: {
-    marginTop: 20,
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.dim,
-    letterSpacing: 1.5,
+  claimArea: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start"
   },
   hint: {
     marginTop: 8,

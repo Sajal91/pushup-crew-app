@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts as useAnton, Anton_400Regular } from '@expo-google-fonts/anton';
 import {
@@ -25,6 +25,7 @@ import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
 import { scheduleTestNotification } from '@/lib/notifications';
 import { preloadTapSound } from '@/lib/tapSound';
+import { ClaimSplashScreen } from '@/components/ClaimSplashScreen';
 
 if (__DEV__) {
   scheduleTestNotification(10)
@@ -107,22 +108,10 @@ function RootNavigator() {
 
   if (!gateReady) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 12,
-          backgroundColor: colors.bg,
-        }}
-        onLayout={onLayoutRootView}
-      >
+      <>
         <StatusBar style="light" />
-        <ActivityIndicator color={colors.acid} />
-        <Text style={{ color: colors.dim, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-          Loading PushupCrew
-        </Text>
-      </View>
+        <ClaimSplashScreen onLayout={onLayoutRootView} />
+      </>
     );
   }
 
