@@ -1,5 +1,5 @@
 // Seed data mirrors shared.jsx so the skeleton matches the prototype 1:1.
-import type { CrewMember, ChatMessage, Crew } from '@/types';
+import type { CrewMember, ChatMessage, Crew, RegionalCrewRank } from '@/types';
 
 export const SEED_CREW: CrewMember[] = [
   { id: 'nik',    image: '', name: 'Nik',    handle: '@nik',  dailyGoal: 100, level: 4, xp: 1820, streak: 23, today: 0,   week: 412, total: 9240,  isMe: true },
@@ -21,7 +21,15 @@ export const SEED_CREW_META: Crew = {
   inviteCode: 'GAINS-XY42',
   skipPotCents: 300, // €3
   ownerId: 'nik',
+  region: 'vienna-at',
 };
+
+export const SEED_REGIONAL_RANKINGS: RegionalCrewRank[] = [
+  { id: 'crew-2', name: 'IRON FORGE', memberCount: 4, today: 340, week: 1820, isMine: false },
+  { id: 'crew-1', name: 'THE BROS', memberCount: 3, today: 180, week: 1232, isMine: true },
+  { id: 'crew-3', name: 'PUSHUP PATROL', memberCount: 5, today: 155, week: 980, isMine: false },
+  { id: 'crew-4', name: 'FLOOR GANG', memberCount: 2, today: 90, week: 640, isMine: false },
+];
 
 // Deterministic pseudo-week data for sparklines, matches shared.jsx algorithm.
 const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];

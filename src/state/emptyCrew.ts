@@ -6,6 +6,7 @@ export const EMPTY_CREW_META: Crew = {
   inviteCode: '',
   skipPotCents: 0,
   ownerId: '',
+  region: '',
 };
 
 export const EMPTY_CREW: CrewMember[] = [];

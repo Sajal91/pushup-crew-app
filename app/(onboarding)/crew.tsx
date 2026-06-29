@@ -191,6 +191,7 @@ export default function CrewStep() {
             <Text style={styles.codeBig}>{generated}</Text>
           </Panel>
           <AcidButton label="📋 COPY CODE" variant="secondary" onPress={copyCode} />
+          <Text style={styles.hint}>// YOUR LOCAL AREA IS SET FROM YOUR LOCATION WHEN YOU CONTINUE</Text>
           <Text style={styles.hint}>// SHARE THIS CODE SO YOUR CREW CAN JOIN</Text>
         </View>
       )}

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AppScreen, ChatMessage, Crew, CrewMember, DailyStat, PushupLog } from '@/types';
-import { SEED_CREW, SEED_CHAT, SEED_CREW_META } from './seed';
+import type { AppScreen, ChatMessage, Crew, CrewMember, DailyStat, PushupLog, RegionalCrewRank } from '@/types';
+import { SEED_CREW, SEED_CHAT, SEED_CREW_META, SEED_REGIONAL_RANKINGS } from './seed';
 import { EMPTY_CREW, EMPTY_CREW_META, EMPTY_CHAT } from './emptyCrew';
 import { XP_PER_PUSHUP, nowHHMM, DEFAULT_DAILY_GOAL, levelFromXp } from '@/lib/mechanics';
 import { clampDisplayName } from '@/lib/displayName';
@@ -11,6 +11,7 @@ import {
   fetchCrewPushupLogs,
   fetchMyCrewSnapshot,
   fetchMyPersonalStats,
+  fetchRegionalCrewRankings,
   insertChatMessage,
   insertPushupLog,
   memberFromPersonalStats,
@@ -28,6 +29,7 @@ export type CrewSyncState = 'idle' | 'loading' | 'ready';
 const INITIAL_CREW = supabaseConfigured ? EMPTY_CREW : SEED_CREW;
 const INITIAL_CREW_META = supabaseConfigured ? EMPTY_CREW_META : SEED_CREW_META;
 const INITIAL_CHAT = supabaseConfigured ? EMPTY_CHAT : SEED_CHAT;
+const INITIAL_REGIONAL_RANKINGS = supabaseConfigured ? [] : SEED_REGIONAL_RANKINGS;
 
 const ONBOARDED_KEY = '@pushupcrew/onboarded';
 const NAME_CONFIRMED_KEY = '@pushupcrew/name_confirmed';
@@ -49,6 +51,7 @@ type AppState = {
   crewMeta: Crew;
   chat: ChatMessage[];
   pushupLogs: PushupLog[];
+  regionalCrewRankings: RegionalCrewRank[];
   meId: string;
   crewSyncState: CrewSyncState;
 
@@ -149,6 +152,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   crewMeta: INITIAL_CREW_META,
   chat: INITIAL_CHAT,
   pushupLogs: [],
+  regionalCrewRankings: INITIAL_REGIONAL_RANKINGS,
   meId: supabaseConfigured ? '' : 'nik',
   crewSyncState: supabaseConfigured ? 'idle' : 'ready',
 
@@ -275,6 +279,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       crewMeta: INITIAL_CREW_META,
       chat: INITIAL_CHAT,
       pushupLogs: [],
+      regionalCrewRankings: INITIAL_REGIONAL_RANKINGS,
       crewSyncState: supabaseConfigured ? 'idle' : 'ready',
     });
   },
@@ -293,6 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       crewMeta: INITIAL_CREW_META,
       chat: INITIAL_CHAT,
       pushupLogs: [],
+      regionalCrewRankings: [],
       crewSyncState: supabaseConfigured ? 'idle' : 'ready',
     });
   },
@@ -383,6 +389,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           } catch (err) {
             if (__DEV__) console.warn('[crew] Failed to sync pushup logs:', err);
           }
+          try {
+            const regionalCrewRankings = await fetchRegionalCrewRankings();
+            set({ regionalCrewRankings });
+          } catch (err) {
+            if (__DEV__) console.warn('[crew] Failed to sync regional rankings:', err);
+          }
           return;
         }
 
@@ -455,6 +467,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           : m,
       ),
       pushupLogs: optimisticLog ? [...state.pushupLogs, optimisticLog] : state.pushupLogs,
+      regionalCrewRankings: supabaseConfigured
+        ? state.regionalCrewRankings
+        : state.regionalCrewRankings.map((entry) =>
+            entry.isMine ? { ...entry, today: entry.today + count, week: entry.week + count } : entry,
+          ),
       levelUpEvent: leveledUp ? Date.now() : get().levelUpEvent,
     }));
 
@@ -521,3 +538,9 @@ export const getCrewInviteCode = (s: AppState): string => s.crewMeta.inviteCode;
 export const selectRankedByToday = (s: AppState): CrewMember[] => [...s.crew].sort((a, b) => b.today - a.today || b.total - a.total);
 
 export const selectRankedByWeek = (s: AppState): CrewMember[] => [...s.crew].sort((a, b) => b.week - a.week || b.total - a.total);
+
+export const selectRegionalRankedByToday = (s: AppState): RegionalCrewRank[] =>
+  [...s.regionalCrewRankings].sort((a, b) => b.today - a.today || a.name.localeCompare(b.name));
+
+export const selectRegionalRankedByWeek = (s: AppState): RegionalCrewRank[] =>
+  [...s.regionalCrewRankings].sort((a, b) => b.week - a.week || a.name.localeCompare(b.name));

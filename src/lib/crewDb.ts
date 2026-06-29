@@ -1,5 +1,6 @@
-import type { ChatMessage, Crew, CrewMember, DailyStat, PushupLog } from '@/types';
+import type { ChatMessage, Crew, CrewMember, DailyStat, PushupLog, RegionalCrewRank } from '@/types';
 import { mapAccountStatus, type AccountStatus } from '@/lib/accountStatus';
+import { resolveCurrentCrewRegion } from '@/lib/regions';
 import { XP_PER_PUSHUP, levelFromXp, nowHHMM } from '@/lib/mechanics';
 import { supabase } from '@/lib/supabase';
 
@@ -40,6 +41,15 @@ type DbCrewPreview = {
   members: { name: string }[];
 };
 
+type DbRegionalCrewRank = {
+  id: string;
+  name: string;
+  member_count: number;
+  today: number;
+  week: number;
+  is_mine?: boolean;
+};
+
 type DbSnapshot = {
   crew: {
     id: string;
@@ -47,6 +57,7 @@ type DbSnapshot = {
     invite_code: string;
     skip_pot_cents: number;
     owner_id?: string | null;
+    region?: string | null;
   };
   daily_goal: number;
   members: {
@@ -201,6 +212,7 @@ export function mapSnapshotToState(snapshot: DbSnapshot, meId: string): CrewSnap
     inviteCode: snapshot.crew.invite_code,
     skipPotCents: snapshot.crew.skip_pot_cents,
     ownerId: snapshot.crew.owner_id ?? undefined,
+    region: snapshot.crew.region ?? undefined,
   };
 
   const members: CrewMember[] = (snapshot.members ?? []).map((m) => {
@@ -341,10 +353,12 @@ export async function previewCrewByInviteCode(code: string): Promise<CrewPreview
 }
 
 export async function createMyCrew(crewName: string, inviteCode: string): Promise<CrewSnapshot> {
+  const region = await resolveCurrentCrewRegion();
   const client = requireClient();
   const { data, error } = await client.rpc('create_my_crew', {
     p_crew_name: crewName,
     p_invite_code: inviteCode,
+    p_region: region,
   });
   if (error) throw new Error(mapRpcError(error));
   const {
@@ -404,6 +418,28 @@ export async function fetchMyCrewSnapshot(userId?: string): Promise<CrewSnapshot
   if (!meId) return null;
 
   return mapSnapshotToState(data as DbSnapshot, meId);
+}
+
+function mapRegionalCrewRank(row: DbRegionalCrewRank): RegionalCrewRank {
+  return {
+    id: row.id,
+    name: row.name,
+    memberCount: Number(row.member_count) || 0,
+    today: Number(row.today) || 0,
+    week: Number(row.week) || 0,
+    isMine: Boolean(row.is_mine),
+  };
+}
+
+export async function fetchRegionalCrewRankings(): Promise<RegionalCrewRank[]> {
+  const client = requireClient();
+  const { data, error } = await withTimeout(
+    client.rpc('get_regional_crew_rankings'),
+    RPC_TIMEOUT_MS,
+    'Regional rankings',
+  );
+  if (error) throw new Error(mapRpcError(error));
+  return ((data ?? []) as DbRegionalCrewRank[]).map(mapRegionalCrewRank);
 }
 
 export async function fetchCrewPushupLogs(crewId: string): Promise<PushupLog[]> {

@@ -45,6 +45,16 @@ export type Crew = {
   inviteCode: string;
   skipPotCents: number;
   ownerId?: string;
+  region?: string;
+};
+
+export type RegionalCrewRank = {
+  id: string;
+  name: string;
+  memberCount: number;
+  today: number;
+  week: number;
+  isMine?: boolean;
 };
 
 export type AppScreen = 'home' | 'log' | 'rank' | 'chat' | 'you';

@@ -57,7 +57,13 @@
           "enableBackgroundRemoteNotifications": false
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PushupCrew uses your location to place your crew in your local area ranking."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

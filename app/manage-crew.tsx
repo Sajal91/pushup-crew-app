@@ -192,6 +192,7 @@ export default function ManageCrewScreen() {
             <Text style={styles.codeBig}>{generated}</Text>
           </Panel>
           <AcidButton label="📋 COPY CODE" variant="secondary" onPress={copyCode} />
+          <Text style={styles.hint}>// YOUR LOCAL AREA IS SET FROM YOUR LOCATION WHEN YOU CONTINUE</Text>
           <Text style={styles.hint}>// YOUR OLD CREW STAYS FOR OTHER MEMBERS</Text>
         </View>
       )}

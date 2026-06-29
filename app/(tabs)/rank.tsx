@@ -11,8 +11,11 @@ import {
   useAppStore,
   selectRankedByToday,
   selectRankedByWeek,
+  selectRegionalRankedByToday,
+  selectRegionalRankedByWeek,
 } from '@/state/useAppStore';
 import { SkipPotPanel } from '@/components/SkipPotPanel';
+import { RegionalCrewRanking } from '@/components/RegionalCrewRanking';
 import { DEFAULT_DAILY_GOAL, formatEuro, levelFromXp, SKIP_PENALTY } from '@/lib/mechanics';
 import type { CrewMember, PushupLog } from '@/types';
 import { HeroNumber } from '@/components/HeroNumber';
@@ -120,6 +123,9 @@ export default function RankScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const sparklineWidth = screenWidth - spacing.screen * 2 - spacing.cardPad * 2;
   const ranked = useAppStore(mode === 'today' ? selectRankedByToday : selectRankedByWeek);
+  const regionalRanked = useAppStore(
+    mode === 'today' ? selectRegionalRankedByToday : selectRegionalRankedByWeek,
+  );
   const crewMeta = useAppStore((s) => s.crewMeta);
   const dailyGoal = useAppStore((s) => s.dailyGoal);
   const pushupLogs = useAppStore((s) => s.pushupLogs);
@@ -211,6 +217,14 @@ export default function RankScreen() {
           );
         })}
       </View>
+
+      <View style={{ width: "60%", marginInline: "auto", height: 1, borderTopWidth: 0.2, borderColor: "rgba(255, 255, 255, 0.4)", marginTop: 60 }} />
+
+      <RegionalCrewRanking
+        mode={mode}
+        regionId={crewMeta.region}
+        rankings={regionalRanked}
+      />
     </ScreenContainer>
   );
 }
