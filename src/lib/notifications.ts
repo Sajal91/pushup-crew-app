@@ -2,9 +2,32 @@ import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { CrewMember } from '@/types';
 import { todayISO } from '@/lib/mechanics';
+import { nextViennaWallClock } from '@/lib/viennaTime';
 
 export const DAILY_REMINDER_ID = 'daily-goal-reminder';
+export const FLAME_EXTINGUISHER_ID = 'crew-flame-extinguisher';
+export const MORNING_LEDGER_ID = 'crew-morning-ledger';
 const ANDROID_CHANNEL_ID = 'daily-reminders';
+const CREW_CHANNEL_ID = 'crew-alerts';
+const FLAME_EXTINGUISHER_HOUR = 19;
+const FLAME_EXTINGUISHER_MINUTE = 0;
+const MORNING_LEDGER_HOUR = 7;
+const MORNING_LEDGER_MINUTE = 30;
+
+export type CrewNotificationType =
+  | 'domino_effect'
+  | 'leaderboard_threat'
+  | 'lone_wolf'
+  | 'flame_extinguisher'
+  | 'free_pass'
+  | 'morning_ledger'
+  | 'milestone_feast';
+
+export type CrewNotificationPayload = {
+  type: CrewNotificationType;
+  title: string;
+  body: string;
+};
 const GMT2_OFFSET_MS = 2 * 60 * 60 * 1000;
 /** 18:00 in fixed GMT+2 = 16:00 UTC */
 const DAILY_REMINDER_HOUR_GMT2 = 18;
@@ -107,7 +130,7 @@ function minutesUntil(date: Date): number {
   return Math.max(0, Math.round((date.getTime() - Date.now()) / 60_000));
 }
 
-async function ensureAndroidChannel(): Promise<void> {
+async function ensureAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
   const Notifications = await getNotifications();
   if (!Notifications) return;
@@ -119,13 +142,21 @@ async function ensureAndroidChannel(): Promise<void> {
     enableVibrate: true,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
+
+  await Notifications.setNotificationChannelAsync(CREW_CHANNEL_ID, {
+    name: 'Crew Alerts',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    enableVibrate: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
 }
 
 export async function ensureNotificationPermissions(): Promise<boolean> {
   const Notifications = await getNotifications();
   if (!Notifications) return false;
 
-  await ensureAndroidChannel();
+  await ensureAndroidChannels();
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
@@ -255,6 +286,118 @@ export async function syncDailyGoalReminder(me: CrewMember | undefined, dailyGoa
 
 export async function clearDailyGoalReminderOnSignOut(): Promise<void> {
   await cancelDailyGoalReminder();
+  await cancelCrewScheduledNotifications();
+}
+
+function crewChannelProps(): { channelId?: string } {
+  return Platform.OS === 'android' ? { channelId: CREW_CHANNEL_ID } : {};
+}
+
+export async function presentCrewNotification(payload: CrewNotificationPayload): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  const granted = await ensureNotificationPermissions();
+  if (!granted) return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: payload.title,
+      body: payload.body,
+      data: { type: payload.type },
+      sound: 'default',
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+      ...crewChannelProps(),
+    },
+    trigger: null,
+  });
+
+  if (__DEV__) {
+    console.log(`[notifications] Crew alert: ${payload.type} — ${payload.title}`);
+  }
+}
+
+async function scheduleCrewNotificationAtViennaTime(
+  identifier: string,
+  hour: number,
+  minute: number,
+  payload: CrewNotificationPayload,
+): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  const granted = await ensureNotificationPermissions();
+  if (!granted) return;
+
+  const triggerDate = nextViennaWallClock(hour, minute);
+
+  await Notifications.scheduleNotificationAsync({
+    identifier,
+    content: {
+      title: payload.title,
+      body: payload.body,
+      data: { type: payload.type },
+      sound: 'default',
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+      ...crewChannelProps(),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: triggerDate,
+      channelId: CREW_CHANNEL_ID,
+    },
+  });
+
+  if (__DEV__) {
+    console.log(
+      `[notifications] Scheduled ${payload.type} for Vienna ${hour}:${String(minute).padStart(2, '0')} ` +
+        `(${triggerDate.toISOString()}, in ~${minutesUntil(triggerDate)} min)`,
+    );
+  }
+}
+
+export async function rescheduleFlameExtinguisher(
+  payload: CrewNotificationPayload | null,
+): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  await Notifications.cancelScheduledNotificationAsync(FLAME_EXTINGUISHER_ID);
+  if (!payload) return;
+
+  await scheduleCrewNotificationAtViennaTime(
+    FLAME_EXTINGUISHER_ID,
+    FLAME_EXTINGUISHER_HOUR,
+    FLAME_EXTINGUISHER_MINUTE,
+    payload,
+  );
+}
+
+export async function rescheduleMorningLedger(payload: CrewNotificationPayload | null): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  await Notifications.cancelScheduledNotificationAsync(MORNING_LEDGER_ID);
+  if (!payload) return;
+
+  await scheduleCrewNotificationAtViennaTime(
+    MORNING_LEDGER_ID,
+    MORNING_LEDGER_HOUR,
+    MORNING_LEDGER_MINUTE,
+    payload,
+  );
+}
+
+export async function cancelCrewScheduledNotifications(): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+
+  await Notifications.cancelScheduledNotificationAsync(FLAME_EXTINGUISHER_ID);
+  await Notifications.cancelScheduledNotificationAsync(MORNING_LEDGER_ID);
+}
+
+export function resetCrewNotificationTracking(): void {
+  // Reserved for module-level dedupe state if needed later.
 }
 
 export function addNotificationResponseListener(

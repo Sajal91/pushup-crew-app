@@ -23,6 +23,11 @@ import {
 } from '@/lib/crewDb';
 import { ensureMeInCrew, placeholderMe } from '@/state/crewHelpers';
 import { syncDailyGoalReminder } from '@/lib/notifications';
+import {
+  resetCrewNotificationsState,
+  syncCrewScheduledNotifications,
+  syncPotMilestoneNotification,
+} from '@/lib/crewNotifications';
 
 export type CrewSyncState = 'idle' | 'loading' | 'ready';
 
@@ -205,7 +210,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  clearAuthProfile: () =>
+  clearAuthProfile: () => {
+    resetCrewNotificationsState();
     set({
       name: '',
       image: '',
@@ -217,7 +223,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       crewSyncState: supabaseConfigured ? 'idle' : 'ready',
       onboarded: false,
       nameConfirmed: false,
-    }),
+    });
+  },
 
   setName: (name) => {
     const display = clampDisplayName(name);
@@ -422,6 +429,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         const state = get();
         const me = state.crew.find((m) => m.id === state.meId) ?? state.crew.find((m) => m.isMe);
         void syncDailyGoalReminder(me, state.dailyGoal);
+        void syncCrewScheduledNotifications({
+          me,
+          crew: state.crew,
+          dailyGoal: state.dailyGoal,
+          skipPotCents: state.crewMeta.skipPotCents,
+        });
+        void syncPotMilestoneNotification(state.crewMeta.skipPotCents);
       }
     })();
 

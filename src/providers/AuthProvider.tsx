@@ -27,6 +27,7 @@ import {
 } from '@/lib/crewDb';
 import { useAppStore } from '@/state/useAppStore';
 import { clearDailyGoalReminderOnSignOut } from '@/lib/notifications';
+import { handleTeammatePushupLog } from '@/lib/crewNotifications';
 
 type SignInResult =
   | { ok: true; redirectPath: string }
@@ -268,8 +269,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           table: 'pushup_logs',
           filter: `crew_id=eq.${crewId}`,
         },
-        () => {
-          void syncCrewFromDb();
+        (payload) => {
+          const row = payload.new as { user_id: string; count: number };
+          const state = useAppStore.getState();
+          const prevCrew = state.crew;
+          const meId = state.meId;
+
+          void state.syncCrewFromDb().then(() => {
+            if (row.user_id === meId) return;
+            const next = useAppStore.getState();
+            const me = next.crew.find((m) => m.id === meId) ?? next.crew.find((m) => m.isMe);
+            void handleTeammatePushupLog({
+              triggerUserId: row.user_id,
+              logCount: Number(row.count) || 0,
+              prevCrew,
+              crew: next.crew,
+              me,
+              dailyGoal: next.dailyGoal,
+              skipPotCents: next.crewMeta.skipPotCents,
+            });
+          });
         },
       )
       .subscribe((status) => {
@@ -281,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [applyRemoteChatMessage, crewId, session, syncCrewFromDb]);
+  }, [applyRemoteChatMessage, crewId, session]);
 
   useEffect(() => {
     if (incomingUrl) {
