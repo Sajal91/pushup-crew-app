@@ -22,6 +22,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { withTapSound } from '@/lib/tapSound';
+import { StreakSynergyBar } from '@/components/StreakSynergyBar';
 
 type Badge = {
   id: string;
@@ -263,8 +264,18 @@ export default function YouScreen() {
         {goalError ? <Text style={styles.goalError}>{goalError}</Text> : null}
       </Panel>
 
+      <View style={{ paddingHorizontal: spacing.screen, marginTop: 12 }}>
+        <Panel pad="lg">
+          <StreakSynergyBar
+            streak={me.streak}
+            dailyGoal={me.dailyGoal ?? dailyGoal}
+            todayCount={me.today}
+            dailyStats={me.dailyStats}
+          />
+        </Panel>
+      </View>
+
       <View style={[styles.grid, { paddingHorizontal: spacing.screen, marginTop: 12 }]}>
-        <Stat label="STREAK" value={`${me.streak}D`} />
         <Stat label="TODAY" value={String(me.today)} />
         <Stat label="WEEK" value={String(me.week)} />
         <Stat label="TOTAL" value={String(me.total)} />
