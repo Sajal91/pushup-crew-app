@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Modal, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, fonts } from '@/theme';
 import { OnboardingScreen } from '@/components/OnboardingScreen';
@@ -7,6 +7,8 @@ import { AcidButton } from '@/components/AcidButton';
 import { Kicker } from '@/components/Kicker';
 import { ClaimPager } from '@/components/ClaimPager';
 import { ClaimDots } from '@/components/ClaimDots';
+import { GoogleAuthLoadingScreen } from '@/components/GoogleAuthLoadingScreen';
+import { useMinSplashElapsed } from '@/hooks/useMinSplashElapsed';
 import { CLAIMS, pickRandomClaimIndex } from '@/lib/claims';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabaseConfigured } from '@/lib/supabase';
@@ -14,9 +16,19 @@ import CustomGoogleButton from '@/components/CustomGoogleButton';
 
 export default function Welcome() {
   const router = useRouter();
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signingIn } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [activeClaimIndex, setActiveClaimIndex] = useState(pickRandomClaimIndex);
+  const [showAuthLoader, setShowAuthLoader] = useState(false);
+  const minSplashDone = useMinSplashElapsed(showAuthLoader);
+
+  useEffect(() => {
+    if (signingIn) {
+      setShowAuthLoader(true);
+    } else if (minSplashDone) {
+      setShowAuthLoader(false);
+    }
+  }, [signingIn, minSplashDone]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -49,34 +61,40 @@ export default function Welcome() {
   };
 
   return (
-    <OnboardingScreen
-      scroll={false}
-      footer={
-        <>
-          <ClaimDots total={CLAIMS.length} active={activeClaimIndex} />
-          {supabaseConfigured ? (
-            <CustomGoogleButton onPress={handleGoogleSignIn} />
-          ) : (
-            <AcidButton label="CONTINUE IN DEMO MODE →" onPress={handleDemoContinue} />
-          )}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {!supabaseConfigured ? (
-            <Text style={styles.hint}>
-              Add Supabase + Google env vars for real sign-in. Demo mode skips auth.
-            </Text>
-          ) : null}
-        </>
-      }
-    >
-      <Kicker style={styles.kicker}>// PUSHUPCREW / V1.0</Kicker>
-      <View style={styles.claimArea}>
-        <ClaimPager
-          initialIndex={activeClaimIndex}
-          autoScroll
-          onActiveIndexChange={setActiveClaimIndex}
-        />
-      </View>
-    </OnboardingScreen>
+    <>
+      <OnboardingScreen
+        scroll={false}
+        footer={
+          <>
+            <ClaimDots total={CLAIMS.length} active={activeClaimIndex} />
+            {supabaseConfigured ? (
+              <CustomGoogleButton onPress={handleGoogleSignIn} />
+            ) : (
+              <AcidButton label="CONTINUE IN DEMO MODE →" onPress={handleDemoContinue} />
+            )}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {!supabaseConfigured ? (
+              <Text style={styles.hint}>
+                Add Supabase + Google env vars for real sign-in. Demo mode skips auth.
+              </Text>
+            ) : null}
+          </>
+        }
+      >
+        <Kicker style={styles.kicker}>// PUSHUPCREW / V1.0</Kicker>
+        <View style={styles.claimArea}>
+          <ClaimPager
+            initialIndex={activeClaimIndex}
+            autoScroll
+            onActiveIndexChange={setActiveClaimIndex}
+          />
+        </View>
+      </OnboardingScreen>
+
+      <Modal visible={showAuthLoader} animationType="fade" presentationStyle="fullScreen">
+        <GoogleAuthLoadingScreen />
+      </Modal>
+    </>
   );
 }
 

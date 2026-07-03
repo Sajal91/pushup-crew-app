@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, useLocalSearchParams, useGlobalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { colors } from '@/theme';
+import { GoogleAuthLoadingScreen } from '@/components/GoogleAuthLoadingScreen';
+import { useMinSplashElapsed } from '@/hooks/useMinSplashElapsed';
 import {
   authRedirectUri,
   createSessionFromUrl,
@@ -21,6 +21,8 @@ export default function AuthCallback() {
   const localParams = useLocalSearchParams();
   const globalParams = useGlobalSearchParams();
   const handled = useRef(false);
+  const minSplashDone = useMinSplashElapsed(true);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabaseConfigured || handled.current) return;
@@ -37,30 +39,18 @@ export default function AuthCallback() {
     (async () => {
       try {
         const session = await createSessionFromUrl(callbackUrl, params);
-        if (session) {
-          router.replace('/');
-          return;
-        }
+        setRedirectPath(session ? '/' : '/(onboarding)/welcome');
       } catch (err) {
         console.warn('[auth] callback route error:', err);
+        setRedirectPath('/(onboarding)/welcome');
       }
-
-      router.replace('/(onboarding)/welcome');
     })();
-  }, [url, localParams, globalParams, router]);
+  }, [url, localParams, globalParams]);
 
-  return (
-    <View style={styles.wrap}>
-      <ActivityIndicator color={colors.acid} size="large" />
-    </View>
-  );
+  useEffect(() => {
+    if (!redirectPath || !minSplashDone) return;
+    router.replace(redirectPath as '/' | '/(onboarding)/welcome');
+  }, [redirectPath, minSplashDone, router]);
+
+  return <GoogleAuthLoadingScreen />;
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

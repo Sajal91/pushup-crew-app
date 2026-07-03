@@ -1,7 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, View, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme';
 import { useAuth } from '@/providers/AuthProvider';
 
 interface CustomGoogleButtonProps {
@@ -10,22 +9,18 @@ interface CustomGoogleButtonProps {
 
 
 const CustomGoogleButton: React.FC<CustomGoogleButtonProps> = ({ onPress }) => {
-    const { signingIn } = useAuth();
+    const { googleAuthPending } = useAuth();
 
     return (
         <TouchableOpacity
             activeOpacity={0.7}
-            style={[styles.button, signingIn && styles.buttonDisabled]}
-            disabled={signingIn}
+            style={[styles.button, googleAuthPending && styles.buttonDisabled]}
+            disabled={googleAuthPending}
             onPress={onPress}
         >
             <View style={styles.content}>
-                {signingIn ? <ActivityIndicator color={colors.acid} style={{ marginTop: 8 }} /> : <View style={{display: "flex", flexDirection: "row", gap: 10, alignItems: "center"}}>
-                    <Ionicons name="logo-google" size={22} color="#000" />
-                    <Text style={styles.text}>
-                        Continue with Google
-                    </Text>
-                </View>}
+                <Ionicons name="logo-google" size={22} color="#000" />
+                <Text style={styles.text}>Continue with Google</Text>
             </View>
         </TouchableOpacity>
     );

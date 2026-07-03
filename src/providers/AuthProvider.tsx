@@ -28,6 +28,7 @@ import {
 import { useAppStore } from '@/state/useAppStore';
 import { clearDailyGoalReminderOnSignOut } from '@/lib/notifications';
 import { handleTeammatePushupLog } from '@/lib/crewNotifications';
+import { SPLASH_MIN_MS } from '@/hooks/useMinSplashElapsed';
 
 type SignInResult =
   | { ok: true; redirectPath: string }
@@ -37,7 +38,12 @@ type AuthContextValue = {
   session: Session | null;
   authReady: boolean;
   accountReady: boolean;
+  /** True while the Google browser sheet is open (button disabled, no loader). */
+  googleAuthPending: boolean;
+  /** True after Google returns — show branded loading screen during session setup. */
   signingIn: boolean;
+  /** True while sign-out is in progress — show branded loading screen. */
+  signingOut: boolean;
   signInWithGoogle: () => Promise<SignInResult>;
   signOut: () => Promise<void>;
 };
@@ -68,7 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabaseConfigured);
   const [accountReady, setAccountReady] = useState(!supabaseConfigured);
+  const [googleAuthPending, setGoogleAuthPending] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const hydrateOnboarding = useAppStore((s) => s.hydrateOnboarding);
   const applyAuthProfile = useAppStore((s) => s.applyAuthProfile);
@@ -345,9 +353,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [bootstrapAuth]);
 
   const signInWithGoogle = useCallback(async (): Promise<SignInResult> => {
-    setSigningIn(true);
+    setGoogleAuthPending(true);
     try {
-      const result = await googleSignIn();
+      const result = await googleSignIn({
+        onOAuthBrowserComplete: () => setSigningIn(true),
+      });
       if (!result.ok) {
         return { ok: false, reason: result.reason };
       }
@@ -370,22 +380,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, reason: message };
     } finally {
       setSigningIn(false);
+      setGoogleAuthPending(false);
     }
   }, [handleAuthSession]);
 
   const resetOnboarding = useAppStore((s) => s.resetOnboarding);
 
   const signOut = useCallback(async () => {
-    profileUpsertUserIdRef.current = null;
-    loggedStaleSessionRef.current = false;
-    authBootstrappedRef.current = false;
-    setAccountReady(false);
-    await clearDailyGoalReminderOnSignOut();
-    await authSignOut();
-    await resetOnboarding();
-    clearAuthProfile();
-    setSession(null);
-    setAccountReady(true);
+    setSigningOut(true);
+    const startedAt = Date.now();
+    try {
+      profileUpsertUserIdRef.current = null;
+      loggedStaleSessionRef.current = false;
+      authBootstrappedRef.current = false;
+      setAccountReady(false);
+      await clearDailyGoalReminderOnSignOut();
+      await authSignOut();
+      await resetOnboarding();
+      clearAuthProfile();
+      setSession(null);
+      setAccountReady(true);
+    } finally {
+      const remaining = SPLASH_MIN_MS - (Date.now() - startedAt);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+      setSigningOut(false);
+    }
   }, [clearAuthProfile, resetOnboarding]);
 
   const value = useMemo(
@@ -393,11 +414,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       authReady,
       accountReady,
+      googleAuthPending,
       signingIn,
+      signingOut,
       signInWithGoogle,
       signOut,
     }),
-    [session, authReady, accountReady, signingIn, signInWithGoogle, signOut],
+    [session, authReady, accountReady, googleAuthPending, signingIn, signingOut, signInWithGoogle, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

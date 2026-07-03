@@ -33,7 +33,7 @@ type Badge = {
 
 export default function YouScreen() {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, signingOut } = useAuth();
   const me = useAppStore(selectMe);
   const meId = useAppStore((s) => s.meId);
   const inviteCode = useAppStore(getCrewInviteCode);
@@ -43,7 +43,6 @@ export default function YouScreen() {
   const setDailyGoal = useAppStore((s) => s.setDailyGoal);
   const setCrewName = useAppStore((s) => s.setCrewName);
   const syncCrewFromDb = useAppStore((s) => s.syncCrewFromDb);
-  const [signingOut, setSigningOut] = useState(false);
   const [leavingCrew, setLeavingCrew] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const hasCrew = Boolean(crewMeta.id);
@@ -75,13 +74,8 @@ export default function YouScreen() {
 
   const handleSignOut = async () => {
     if (signingOut) return;
-    setSigningOut(true);
-    try {
-      await signOut();
-      router.replace('/(onboarding)/welcome');
-    } finally {
-      setSigningOut(false);
-    }
+    await signOut();
+    router.replace('/(onboarding)/welcome');
   };
 
   const lvl = levelFromXp(me.xp);

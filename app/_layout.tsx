@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts as useAnton, Anton_400Regular } from '@expo-google-fonts/anton';
 import {
@@ -25,7 +25,8 @@ import { onboardingPath, resolveOnboardingStep } from '@/lib/onboardingRoute';
 import { supabaseConfigured } from '@/lib/supabase';
 import { scheduleTestNotification } from '@/lib/notifications';
 import { preloadTapSound } from '@/lib/tapSound';
-import { ClaimSplashScreen } from '@/components/ClaimSplashScreen';
+import { GoogleAuthLoadingScreen } from '@/components/GoogleAuthLoadingScreen';
+import { useMinSplashElapsed } from '@/hooks/useMinSplashElapsed';
 
 if (__DEV__) {
   scheduleTestNotification(10)
@@ -52,7 +53,7 @@ function RootNavigator() {
   });
 
   const fontsReady = antonLoaded && interLoaded && monoLoaded;
-  const { session, authReady, accountReady } = useAuth();
+  const { session, authReady, accountReady, signingOut } = useAuth();
   const onboarded = useAppStore((s) => s.onboarded);
   const nameConfirmed = useAppStore((s) => s.nameConfirmed);
   const onboardingHydrated = useAppStore((s) => s.onboardingHydrated);
@@ -67,9 +68,11 @@ function RootNavigator() {
   }, [fontsReady]);
 
   const gateReady = fontsReady && authReady && onboardingHydrated && accountReady;
+  const minSplashDone = useMinSplashElapsed(fontsReady);
+  const appReady = gateReady && minSplashDone;
 
   useEffect(() => {
-    if (!gateReady) return;
+    if (!appReady) return;
 
     const inOnboarding = segments[0] === '(onboarding)';
     const currentStep = segments[1] as string | undefined;
@@ -102,11 +105,23 @@ function RootNavigator() {
     if (!inTabs && !inAuth && !inManageCrew) {
       router.replace('/(tabs)');
     }
-  }, [gateReady, session, onboarded, nameConfirmed, crewMeta.id, segments, router]);
+  }, [appReady, session, onboarded, nameConfirmed, crewMeta.id, segments, router]);
 
   if (!fontsReady) return null;
 
-  if (!gateReady) {
+  if (signingOut) {
+    return (
+      <View
+        style={{ flex: 1, backgroundColor: colors.bg }}
+        onLayout={onLayoutRootView}
+      >
+        <StatusBar style="light" />
+        <GoogleAuthLoadingScreen />
+      </View>
+    );
+  }
+
+  if (!appReady) {
     return (
       <View
         style={{
@@ -119,10 +134,7 @@ function RootNavigator() {
         onLayout={onLayoutRootView}
       >
         <StatusBar style="light" />
-        <ActivityIndicator color={colors.acid} />
-        <Text style={{ color: colors.dim, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-          Loading PushupCrew
-        </Text>
+        <GoogleAuthLoadingScreen />
       </View>
     );
   }

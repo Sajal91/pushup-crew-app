@@ -132,7 +132,14 @@ export async function createSessionFromUrl(
   throw new Error('No auth code or tokens in redirect URL');
 }
 
-export async function signInWithGoogle(): Promise<GoogleSignInResult> {
+type GoogleSignInOptions = {
+  /** Fires after the user finishes in the Google browser and before session exchange. */
+  onOAuthBrowserComplete?: () => void;
+};
+
+export async function signInWithGoogle(
+  options?: GoogleSignInOptions,
+): Promise<GoogleSignInResult> {
   if (!supabaseConfigured || !supabase) {
     return { ok: false, reason: 'supabase-not-configured' };
   }
@@ -178,6 +185,8 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
     if (__DEV__) {
       console.log('[auth] OAuth redirect received:', browserResult.url);
     }
+
+    options?.onOAuthBrowserComplete?.();
 
     const session = await createSessionFromUrl(browserResult.url);
     if (!session) {
