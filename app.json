@@ -7,9 +7,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050505",
-    "icon": "./assets/splash.png",
+    "icon": "./assets/logo/icon-app-safe-1024.png",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/logo/icon-app-safe-1024.png",
       "backgroundColor": "#050505",
       "resizeMode": "contain"
     },
@@ -22,6 +22,13 @@
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo/icon-adaptive-flat-1024.png",
+        "backgroundColor": "#050505"
+      },
+      "splash": {
+        "image": "./assets/logo/icon-adaptive-flat-1024.png"
       }
     },
     "android": {
@@ -35,11 +42,11 @@
         "VIBRATE"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/splash.png",
+        "foregroundImage": "./assets/logo/icon-adaptive-flat-1024.png",
         "backgroundColor": "#050505"
       },
       "splash": {
-        "image": "./assets/splash.png"
+        "image": "./assets/logo/icon-adaptive-flat-1024.png"
       }
     },
     "plugins": [

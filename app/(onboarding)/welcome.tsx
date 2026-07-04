@@ -91,9 +91,9 @@ export default function Welcome() {
         </View>
       </OnboardingScreen>
 
-      <Modal visible={showAuthLoader} animationType="fade" presentationStyle="fullScreen">
+      {/* <Modal visible={showAuthLoader} animationType="fade" presentationStyle="fullScreen">
         <GoogleAuthLoadingScreen />
-      </Modal>
+      </Modal> */}
     </>
   );
 }
