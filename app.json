@@ -9,7 +9,7 @@
     "backgroundColor": "#050505",
     "icon": "./assets/logo/icon-app-safe-1024.png",
     "splash": {
-      "image": "./assets/logo/icon-app-safe-1024.png",
+      "image": "./assets/logo/icon-87.png",
       "backgroundColor": "#050505",
       "resizeMode": "contain"
     },
@@ -28,7 +28,7 @@
         "backgroundColor": "#050505"
       },
       "splash": {
-        "image": "./assets/logo/icon-adaptive-flat-1024.png"
+        "image": "./assets/logo/icon-87.png"
       }
     },
     "android": {
@@ -46,7 +46,7 @@
         "backgroundColor": "#050505"
       },
       "splash": {
-        "image": "./assets/logo/icon-adaptive-flat-1024.png"
+        "image": "./assets/logo/icon-87.png"
       }
     },
     "plugins": [
