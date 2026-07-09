@@ -13,14 +13,31 @@ type ExpoPushMessage = {
   sound: 'default';
   priority: 'high';
   channelId?: string;
+  android?: {
+    channelId: string;
+    priority: 'high';
+  };
+  ios?: {
+    sound: 'default';
+  };
+};
+
+export type ExpoPushResult = {
+  sent: number;
+  tickets: unknown[];
+  errors: string[];
 };
 
 export async function sendExpoPush(
   tokens: string[],
   payload: PushPayload,
-): Promise<void> {
+): Promise<ExpoPushResult> {
   const unique = [...new Set(tokens.filter(Boolean))];
-  if (unique.length === 0) return;
+  if (unique.length === 0) {
+    return { sent: 0, tickets: [], errors: [] };
+  }
+
+  const channelId = payload.channelId ?? 'crew-alerts';
 
   const messages: ExpoPushMessage[] = unique.map((to) => ({
     to,
@@ -29,10 +46,17 @@ export async function sendExpoPush(
     data: { type: payload.type },
     sound: 'default',
     priority: 'high',
-    ...(payload.channelId ? { channelId: payload.channelId } : {}),
+    channelId,
+    android: {
+      channelId,
+      priority: 'high',
+    },
+    ios: {
+      sound: 'default',
+    },
   }));
 
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+  const response = await fetch('https://exp.host/--/api/v2/push/send?useFcmV1=true', {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -42,8 +66,35 @@ export async function sendExpoPush(
     body: JSON.stringify(messages),
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Expo push failed (${response.status}): ${text}`);
+  const raw = await response.text();
+  let parsed: { data?: Array<{ status?: string; message?: string; details?: unknown; id?: string }> } = {};
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Expo push returned non-JSON (${response.status}): ${raw}`);
   }
+
+  if (!response.ok) {
+    throw new Error(`Expo push failed (${response.status}): ${raw}`);
+  }
+
+  const tickets = parsed.data ?? [];
+  const errors: string[] = [];
+
+  for (const ticket of tickets) {
+    if (ticket.status === 'error') {
+      const detail = ticket.details ? ` ${JSON.stringify(ticket.details)}` : '';
+      errors.push(`${ticket.message ?? 'Unknown Expo push error'}${detail}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error('[expo-push] ticket errors:', errors);
+  }
+
+  return {
+    sent: tickets.filter((t) => t.status === 'ok').length,
+    tickets,
+    errors,
+  };
 }

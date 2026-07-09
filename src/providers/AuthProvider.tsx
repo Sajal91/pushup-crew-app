@@ -28,7 +28,7 @@ import {
 import { useAppStore } from '@/state/useAppStore';
 import { clearDailyGoalReminderOnSignOut } from '@/lib/notifications';
 import { handleTeammateChatMessage, handleTeammatePushupLog } from '@/lib/crewNotifications';
-import { clearPushTokenOnSignOut } from '@/lib/pushToken';
+import { clearPushTokenOnSignOut, syncPushToken } from '@/lib/pushToken';
 import { SPLASH_MIN_MS } from '@/hooks/useMinSplashElapsed';
 
 type SignInResult =
@@ -212,6 +212,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await syncAccountAfterAuth(displayName, validated.user.id);
       } finally {
         setAccountReady(true);
+        if (supabaseConfigured) {
+          void syncPushToken(true);
+        }
       }
     },
     [applyAuthProfile, clearAuthProfile, syncAccountAfterAuth, validateSession],
@@ -270,15 +273,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const message = mapDbChatMessage(payload.new as DbChatMessage);
           applyRemoteChatMessage(message);
 
-          if (!supabaseConfigured) {
-            const state = useAppStore.getState();
-            void handleTeammateChatMessage({
-              message,
-              crew: state.crew,
-              meId: state.meId,
-              activeScreen: state.activeScreen,
-            });
-          }
+          const state = useAppStore.getState();
+          void handleTeammateChatMessage({
+            message,
+            crew: state.crew,
+            meId: state.meId,
+            activeScreen: state.activeScreen,
+          });
         },
       )
       .on(
@@ -296,7 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const meId = state.meId;
 
           void state.syncCrewFromDb().then(() => {
-            if (row.user_id === meId || supabaseConfigured) return;
+            if (row.user_id === meId) return;
             const next = useAppStore.getState();
             const me = next.crew.find((m) => m.id === meId) ?? next.crew.find((m) => m.isMe);
             void handleTeammatePushupLog({

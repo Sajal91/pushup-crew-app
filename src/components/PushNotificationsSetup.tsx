@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { addNotificationResponseListener, syncDailyGoalReminder } from '@/lib/notifications';
 import { syncCrewScheduledNotifications } from '@/lib/crewNotifications';
-import { syncPushToken, attachPushTokenListener } from '@/lib/pushToken';
+import { syncPushToken, attachPushTokenListener, attachPushTokenAppStateListener } from '@/lib/pushToken';
 import { supabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 import { useAppStore, selectMe } from '@/state/useAppStore';
@@ -28,13 +28,20 @@ export function PushNotificationsSetup() {
   const me = useAppStore(selectMe);
 
   useEffect(() => {
-    if (!accountReady || !onboarded) return;
+    if (!accountReady) return;
     if (supabaseConfigured && !session) return;
 
     if (supabaseConfigured) {
-      void syncPushToken();
-      return attachPushTokenListener();
+      void syncPushToken(true);
+      const removeTokenListener = attachPushTokenListener();
+      const removeAppStateListener = attachPushTokenAppStateListener();
+      return () => {
+        removeTokenListener();
+        removeAppStateListener();
+      };
     }
+
+    if (!onboarded) return;
 
     void syncDailyGoalReminder(me, dailyGoal);
     void syncCrewScheduledNotifications({

@@ -3,7 +3,6 @@ import { sendExpoPush, type PushPayload } from '../_shared/expoPush.ts';
 import {
   chatMessagePayload,
   dailyGoalReminderPayload,
-  dominoEffectPayload,
   flameExtinguisherPayload,
   gmt2IsoDay,
   isLoneWolfWindow,
@@ -20,8 +19,7 @@ import {
 const POT_MILESTONE_CENTS = 50 * 100;
 const APP_TIMEZONE = 'Europe/Vienna';
 
-type DbProfile = {
-  id: string;
+type ProfileFields = {
   name: string;
   daily_goal: number;
   streak_days: number;
@@ -48,7 +46,16 @@ type DispatchBody =
       record: { id: string; skip_pot_cents: number };
       old_record: { skip_pot_cents: number };
     }
-  | { event: 'scheduled'; job: 'daily_goal' | 'flame_extinguisher' | 'morning_ledger' };
+  | { event: 'scheduled'; job: 'daily_goal' | 'flame_extinguisher' | 'morning_ledger' }
+  | { event: 'test'; user_id: string };
+
+type DispatchStats = {
+  event: string;
+  recipientCount: number;
+  sent: number;
+  skippedReason?: string;
+  expoErrors: string[];
+};
 
 function adminClient() {
   const url = Deno.env.get('SUPABASE_URL');
@@ -63,11 +70,29 @@ function tokensFrom(rows: { expo_push_token: string | null; push_notifications_e
     .map((r) => r.expo_push_token as string);
 }
 
-async function sendToTokens(tokens: string[], payload: PushPayload): Promise<void> {
-  const batchSize = 100;
-  for (let i = 0; i < tokens.length; i += batchSize) {
-    await sendExpoPush(tokens.slice(i, i + batchSize), payload);
+async function sendPayload(tokens: string[], payload: PushPayload): Promise<DispatchStats> {
+  const unique = [...new Set(tokens.filter(Boolean))];
+  if (unique.length === 0) {
+    return {
+      event: payload.type,
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'no_push_tokens',
+      expoErrors: [],
+    };
   }
+
+  const result = await sendExpoPush(unique, payload);
+  console.log(
+    `[push-dispatch] ${payload.type}: recipients=${unique.length} sent=${result.sent} errors=${result.errors.length}`,
+  );
+
+  return {
+    event: payload.type,
+    recipientCount: unique.length,
+    sent: result.sent,
+    expoErrors: result.errors,
+  };
 }
 
 async function fetchCrewMembers(client: ReturnType<typeof adminClient>, crewId: string): Promise<CrewMemberRow[]> {
@@ -76,27 +101,29 @@ async function fetchCrewMembers(client: ReturnType<typeof adminClient>, crewId: 
   weekStart.setDate(weekStart.getDate() - 6);
   const weekStartDay = viennaIsoDay(weekStart);
 
-  const { data: members, error } = await client
+  const { data: members, error: membersError } = await client
     .from('crew_members')
-    .select(`
-      user_id,
-      profiles!inner (
-        name,
-        daily_goal,
-        streak_days,
-        expo_push_token,
-        push_notifications_enabled
-      )
-    `)
+    .select('user_id')
     .eq('crew_id', crewId);
 
-  if (error) throw error;
+  if (membersError) throw membersError;
   if (!members?.length) return [];
 
   const rows: CrewMemberRow[] = [];
+
   for (const member of members) {
-    const profile = member.profiles as unknown as DbProfile;
     const userId = member.user_id as string;
+
+    const { data: profile, error: profileError } = await client
+      .from('profiles')
+      .select('name, daily_goal, streak_days, expo_push_token, push_notifications_enabled')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    if (!profile) continue;
+
+    const p = profile as ProfileFields;
 
     const { data: logs } = await client
       .from('pushup_logs')
@@ -115,20 +142,20 @@ async function fetchCrewMembers(client: ReturnType<typeof adminClient>, crewId: 
 
     rows.push({
       user_id: userId,
-      name: profile.name,
-      daily_goal: profile.daily_goal ?? 100,
-      streak_days: profile.streak_days ?? 0,
+      name: p.name,
+      daily_goal: p.daily_goal ?? 100,
+      streak_days: p.streak_days ?? 0,
       today: todayCount,
       week: weekCount,
-      expo_push_token: profile.expo_push_token,
-      push_notifications_enabled: profile.push_notifications_enabled,
+      expo_push_token: p.expo_push_token,
+      push_notifications_enabled: p.push_notifications_enabled ?? true,
     });
   }
 
   return rows;
 }
 
-async function handleChatMessage(body: Extract<DispatchBody, { event: 'chat_message' }>) {
+async function handleChatMessage(body: Extract<DispatchBody, { event: 'chat_message' }>): Promise<DispatchStats> {
   const client = adminClient();
   const { crew_id, user_id, text } = body.record;
 
@@ -140,30 +167,57 @@ async function handleChatMessage(body: Extract<DispatchBody, { event: 'chat_mess
 
   const members = await fetchCrewMembers(client, crew_id);
   const tokens = tokensFrom(members.filter((m) => m.user_id !== user_id));
-  if (tokens.length === 0) return;
 
-  const payload = chatMessagePayload(sender?.name ?? 'Crew', text);
-  await sendToTokens(tokens, payload);
+  console.log(
+    `[push-dispatch] chat_message crew=${crew_id} members=${members.length} tokens=${tokens.length}`,
+  );
+
+  if (tokens.length === 0) {
+    return {
+      event: 'chat_message',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'no_recipient_tokens',
+      expoErrors: [],
+    };
+  }
+
+  return sendPayload(tokens, chatMessagePayload(sender?.name ?? 'Crew', text));
 }
 
-async function handlePushupLog(body: Extract<DispatchBody, { event: 'pushup_log' }>) {
+async function handlePushupLog(body: Extract<DispatchBody, { event: 'pushup_log' }>): Promise<DispatchStats> {
   const client = adminClient();
   const { crew_id, user_id: triggerUserId, count: logCount } = body.record;
 
   const members = await fetchCrewMembers(client, crew_id);
   const trigger = members.find((m) => m.user_id === triggerUserId);
-  if (!trigger) return;
+  if (!trigger) {
+    return {
+      event: 'pushup_log',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'trigger_not_in_crew',
+      expoErrors: [],
+    };
+  }
 
   const triggerPrevWeek = trigger.week - logCount;
   const remainingSlackers = members.filter((m) => m.today < m.daily_goal);
+  const stats: DispatchStats = {
+    event: 'pushup_log',
+    recipientCount: 0,
+    sent: 0,
+    expoErrors: [],
+  };
 
   for (const target of members) {
     if (target.user_id === triggerUserId) continue;
     if (target.today >= target.daily_goal) continue;
     if (!target.push_notifications_enabled || !target.expo_push_token) continue;
 
-    let payload: PushPayload;
+    stats.recipientCount += 1;
 
+    let payload: PushPayload;
     if (triggerPrevWeek <= target.week && trigger.week > target.week) {
       payload = leaderboardThreatPayload(trigger.name, logCount);
     } else if (
@@ -178,38 +232,77 @@ async function handlePushupLog(body: Extract<DispatchBody, { event: 'pushup_log'
         .select('skip_pot_cents')
         .eq('id', crew_id)
         .maybeSingle();
-      payload = pickSlackerPayload(
-        trigger.name,
-        target.name,
-        logCount,
-        crew?.skip_pot_cents ?? 0,
-      );
+      payload = pickSlackerPayload(trigger.name, target.name, logCount, crew?.skip_pot_cents ?? 0);
     }
 
-    await sendToTokens([target.expo_push_token], payload);
+    const result = await sendPayload([target.expo_push_token], payload);
+    stats.sent += result.sent;
+    stats.expoErrors.push(...result.expoErrors);
   }
+
+  if (stats.recipientCount === 0) {
+    stats.skippedReason = 'all_targets_met_goal_or_no_tokens';
+  }
+
+  return stats;
 }
 
-async function handlePotUpdate(body: Extract<DispatchBody, { event: 'crew_pot_update' }>) {
+async function handlePotUpdate(body: Extract<DispatchBody, { event: 'crew_pot_update' }>): Promise<DispatchStats> {
   const nextCents = body.record.skip_pot_cents;
   const prevCents = body.old_record.skip_pot_cents;
-  if (nextCents <= 0 || nextCents % POT_MILESTONE_CENTS !== 0) return;
-  if (nextCents <= prevCents) return;
+  if (nextCents <= 0 || nextCents % POT_MILESTONE_CENTS !== 0) {
+    return {
+      event: 'crew_pot_update',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'not_a_milestone',
+      expoErrors: [],
+    };
+  }
+  if (nextCents <= prevCents) {
+    return {
+      event: 'crew_pot_update',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'pot_did_not_increase',
+      expoErrors: [],
+    };
+  }
   if (Math.floor(nextCents / POT_MILESTONE_CENTS) <= Math.floor(prevCents / POT_MILESTONE_CENTS)) {
-    return;
+    return {
+      event: 'crew_pot_update',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'milestone_already_sent',
+      expoErrors: [],
+    };
   }
 
   const client = adminClient();
   const members = await fetchCrewMembers(client, body.record.id);
   const tokens = tokensFrom(members);
-  if (tokens.length === 0) return;
+  if (tokens.length === 0) {
+    return {
+      event: 'milestone_feast',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'no_recipient_tokens',
+      expoErrors: [],
+    };
+  }
 
-  await sendToTokens(tokens, milestoneFeastPayload(nextCents));
+  return sendPayload(tokens, milestoneFeastPayload(nextCents));
 }
 
-async function handleDailyGoalReminder() {
+async function handleDailyGoalReminder(): Promise<DispatchStats> {
   const client = adminClient();
   const gmt2Day = gmt2IsoDay();
+  const stats: DispatchStats = {
+    event: 'daily_goal_reminder',
+    recipientCount: 0,
+    sent: 0,
+    expoErrors: [],
+  };
 
   const { data: profiles, error } = await client
     .from('profiles')
@@ -245,49 +338,81 @@ async function handleDailyGoalReminder() {
     const goal = profile.daily_goal ?? 100;
     if (todayCount >= goal || !profile.expo_push_token) continue;
 
-    await sendToTokens(
+    stats.recipientCount += 1;
+    const result = await sendPayload(
       [profile.expo_push_token],
       dailyGoalReminderPayload(goal - todayCount),
     );
+    stats.sent += result.sent;
+    stats.expoErrors.push(...result.expoErrors);
   }
+
+  return stats;
 }
 
-async function handleFlameExtinguisher() {
+async function handleFlameExtinguisher(): Promise<DispatchStats> {
   const { hour } = viennaParts();
-  if (hour !== 19) return;
-
-  const client = adminClient();
-  const membersByCrew = new Map<string, CrewMemberRow[]>();
-
-  const { data: memberships } = await client
-    .from('crew_members')
-    .select('crew_id, user_id');
-
-  const crewIds = [...new Set((memberships ?? []).map((m) => m.crew_id as string))];
-  for (const crewId of crewIds) {
-    membersByCrew.set(crewId, await fetchCrewMembers(client, crewId));
+  if (hour !== 19) {
+    return {
+      event: 'flame_extinguisher',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'outside_vienna_19_00_window',
+      expoErrors: [],
+    };
   }
 
-  for (const members of membersByCrew.values()) {
+  const client = adminClient();
+  const stats: DispatchStats = {
+    event: 'flame_extinguisher',
+    recipientCount: 0,
+    sent: 0,
+    expoErrors: [],
+  };
+
+  const { data: memberships } = await client.from('crew_members').select('crew_id, user_id');
+  const crewIds = [...new Set((memberships ?? []).map((m) => m.crew_id as string))];
+
+  for (const crewId of crewIds) {
+    const members = await fetchCrewMembers(client, crewId);
     for (const member of members) {
       if (member.streak_days < 3) continue;
       if (member.today >= member.daily_goal) continue;
       if (!member.expo_push_token || !member.push_notifications_enabled) continue;
 
-      await sendToTokens(
+      stats.recipientCount += 1;
+      const result = await sendPayload(
         [member.expo_push_token],
         flameExtinguisherPayload(member.streak_days),
       );
+      stats.sent += result.sent;
+      stats.expoErrors.push(...result.expoErrors);
     }
   }
+
+  return stats;
 }
 
-async function handleMorningLedger() {
+async function handleMorningLedger(): Promise<DispatchStats> {
   const { hour, minute } = viennaParts();
-  if (hour !== 7 || minute !== 30) return;
+  if (hour !== 7 || minute !== 30) {
+    return {
+      event: 'morning_ledger',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'outside_vienna_07_30_window',
+      expoErrors: [],
+    };
+  }
 
   const client = adminClient();
   const yesterday = viennaYesterdayIso();
+  const stats: DispatchStats = {
+    event: 'morning_ledger',
+    recipientCount: 0,
+    sent: 0,
+    expoErrors: [],
+  };
 
   const { data: crews } = await client.from('crews').select('id, skip_pot_cents');
   for (const crew of crews ?? []) {
@@ -307,8 +432,49 @@ async function handleMorningLedger() {
     const tokens = tokensFrom(members);
     if (tokens.length === 0) continue;
 
-    await sendToTokens(tokens, morningLedgerPayload(missedName, crew.skip_pot_cents ?? 0));
+    stats.recipientCount += tokens.length;
+    const result = await sendPayload(tokens, morningLedgerPayload(missedName, crew.skip_pot_cents ?? 0));
+    stats.sent += result.sent;
+    stats.expoErrors.push(...result.expoErrors);
   }
+
+  return stats;
+}
+
+async function handleTestPush(body: Extract<DispatchBody, { event: 'test' }>): Promise<DispatchStats> {
+  const client = adminClient();
+  const { data: profile, error } = await client
+    .from('profiles')
+    .select('expo_push_token, push_notifications_enabled')
+    .eq('id', body.user_id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!profile?.expo_push_token) {
+    return {
+      event: 'test',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'user_has_no_push_token',
+      expoErrors: [],
+    };
+  }
+  if (!profile.push_notifications_enabled) {
+    return {
+      event: 'test',
+      recipientCount: 0,
+      sent: 0,
+      skippedReason: 'push_notifications_disabled',
+      expoErrors: [],
+    };
+  }
+
+  return sendPayload([profile.expo_push_token], {
+    type: 'chat_message',
+    title: 'PushupCrew test',
+    body: 'If you see this, remote push is working.',
+    channelId: 'crew-alerts',
+  });
 }
 
 async function memberMetDay(
@@ -333,26 +499,35 @@ async function memberMetDay(
 }
 
 async function dispatch(body: DispatchBody): Promise<Response> {
+  let stats: DispatchStats;
+
   switch (body.event) {
     case 'chat_message':
-      await handleChatMessage(body);
+      stats = await handleChatMessage(body);
       break;
     case 'pushup_log':
-      await handlePushupLog(body);
+      stats = await handlePushupLog(body);
       break;
     case 'crew_pot_update':
-      await handlePotUpdate(body);
+      stats = await handlePotUpdate(body);
       break;
     case 'scheduled':
-      if (body.job === 'daily_goal') await handleDailyGoalReminder();
-      if (body.job === 'flame_extinguisher') await handleFlameExtinguisher();
-      if (body.job === 'morning_ledger') await handleMorningLedger();
+      if (body.job === 'daily_goal') stats = await handleDailyGoalReminder();
+      else if (body.job === 'flame_extinguisher') stats = await handleFlameExtinguisher();
+      else if (body.job === 'morning_ledger') stats = await handleMorningLedger();
+      else {
+        return new Response(JSON.stringify({ error: 'Unknown scheduled job' }), { status: 400 });
+      }
+      break;
+    case 'test':
+      stats = await handleTestPush(body);
       break;
     default:
       return new Response(JSON.stringify({ error: 'Unknown event' }), { status: 400 });
   }
 
-  return new Response(JSON.stringify({ ok: true }), {
+  const ok = stats.sent > 0 || Boolean(stats.skippedReason);
+  return new Response(JSON.stringify({ ok, ...stats }), {
     headers: { 'Content-Type': 'application/json' },
   });
 }
@@ -370,6 +545,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as DispatchBody;
+    console.log('[push-dispatch] received', body.event);
     return await dispatch(body);
   } catch (err) {
     console.error('[push-dispatch]', err);
