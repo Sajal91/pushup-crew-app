@@ -254,8 +254,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       dailyGoal: savedGoal,
       crew: state.crew.map((m) => (m.id === state.meId || m.isMe ? { ...m, dailyGoal: savedGoal } : m)),
     }));
-    const me = get().crew.find((m) => m.id === get().meId || m.isMe);
-    void syncDailyGoalReminder(me, savedGoal);
+    const me = get().crew.find((m) => m.id === get().meId) ?? get().crew.find((m) => m.isMe);
+    if (!supabaseConfigured) {
+      void syncDailyGoalReminder(me, savedGoal);
+    }
   },
 
   setCrewName: async (name) => {
@@ -428,14 +430,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         crewSyncInFlight = null;
         const state = get();
         const me = state.crew.find((m) => m.id === state.meId) ?? state.crew.find((m) => m.isMe);
-        void syncDailyGoalReminder(me, state.dailyGoal);
-        void syncCrewScheduledNotifications({
-          me,
-          crew: state.crew,
-          dailyGoal: state.dailyGoal,
-          skipPotCents: state.crewMeta.skipPotCents,
-        });
-        void syncPotMilestoneNotification(state.crewMeta.skipPotCents);
+        if (!supabaseConfigured) {
+          void syncDailyGoalReminder(me, state.dailyGoal);
+          void syncCrewScheduledNotifications({
+            me,
+            crew: state.crew,
+            dailyGoal: state.dailyGoal,
+            skipPotCents: state.crewMeta.skipPotCents,
+          });
+          void syncPotMilestoneNotification(state.crewMeta.skipPotCents);
+        }
       }
     })();
 
@@ -490,7 +494,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     const updatedMe = get().crew.find((m) => m.id === meId) ?? get().crew.find((m) => m.isMe);
-    void syncDailyGoalReminder(updatedMe, get().dailyGoal);
+    if (!supabaseConfigured) {
+      void syncDailyGoalReminder(updatedMe, get().dailyGoal);
+    }
 
     if (supabaseConfigured && crewId) {
       void insertPushupLog(crewId, count)

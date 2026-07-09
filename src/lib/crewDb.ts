@@ -342,6 +342,18 @@ export async function updateMyCrewName(crewName: string): Promise<string> {
   return crewName.trim();
 }
 
+export async function updateMyPushToken(token: string): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.rpc('update_my_push_token', { p_token: token });
+  if (error) throw new Error(mapRpcError(error));
+}
+
+export async function clearMyPushToken(): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.rpc('clear_my_push_token');
+  if (error) throw new Error(mapRpcError(error));
+}
+
 export async function previewCrewByInviteCode(code: string): Promise<CrewPreview | null> {
   const client = requireClient();
   const { data, error } = await client.rpc('preview_crew_by_invite_code', {

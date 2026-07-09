@@ -1,4 +1,4 @@
-import type { CrewMember } from '@/types';
+import type { AppScreen, ChatMessage, CrewMember } from '@/types';
 import { formatEuro } from '@/lib/mechanics';
 import { isLoneWolfWindow, viennaYesterdayIso } from '@/lib/viennaTime';
 import {
@@ -110,6 +110,10 @@ function milestoneFeast(skipPotCents: number): CrewNotificationPayload {
   );
 }
 
+function chatMessage(senderName: string, text: string): CrewNotificationPayload {
+  return buildPayload('chat_message', `${senderName} 💬`, text);
+}
+
 function flameExtinguisher(streak: number): CrewNotificationPayload {
   return buildPayload(
     'flame_extinguisher',
@@ -164,6 +168,24 @@ export async function handleTeammatePushupLog(params: {
   }
 
   await presentCrewNotification(pickSlackerNotification(trigger, me, logCount, skipPotCents));
+}
+
+/** Fire a local notification when a teammate posts a new chat message. */
+export async function handleTeammateChatMessage(params: {
+  message: ChatMessage;
+  crew: CrewMember[];
+  meId: string;
+  activeScreen: AppScreen;
+}): Promise<void> {
+  const { message, crew, meId, activeScreen } = params;
+  if (message.system) return;
+  if (message.who === meId) return;
+  // Don't interrupt the user while they're reading the chat.
+  if (activeScreen === 'chat') return;
+
+  const sender = crew.find((m) => m.id === message.who);
+  const senderName = sender?.name ?? 'Crew';
+  await presentCrewNotification(chatMessage(senderName, message.text));
 }
 
 /** Fire when the crew pot crosses a new €50 milestone. */

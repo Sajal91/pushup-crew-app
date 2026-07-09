@@ -61,7 +61,7 @@
         {
           "color": "#BFFF00",
           "defaultChannel": "daily-reminders",
-          "enableBackgroundRemoteNotifications": false
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "expo-audio",

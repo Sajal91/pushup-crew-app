@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -29,6 +30,14 @@ export default function ChatScreen() {
   const chat = useAppStore((s) => s.chat);
   const sendChat = useAppStore((s) => s.sendChat);
   const crewMeta = useAppStore((s) => s.crewMeta);
+  const setActiveScreen = useAppStore((s) => s.setActiveScreen);
+
+  useFocusEffect(
+    useCallback(() => {
+      setActiveScreen('chat');
+      return () => setActiveScreen('home');
+    }, [setActiveScreen]),
+  );
 
   const [draft, setDraft] = useState('');
   const [keyboardVisible, setKeyboardVisible] = useState(false);

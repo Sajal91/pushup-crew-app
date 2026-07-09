@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { addNotificationResponseListener, syncDailyGoalReminder } from '@/lib/notifications';
 import { syncCrewScheduledNotifications } from '@/lib/crewNotifications';
+import { syncPushToken, attachPushTokenListener } from '@/lib/pushToken';
 import { supabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 import { useAppStore, selectMe } from '@/state/useAppStore';
@@ -29,6 +30,12 @@ export function PushNotificationsSetup() {
   useEffect(() => {
     if (!accountReady || !onboarded) return;
     if (supabaseConfigured && !session) return;
+
+    if (supabaseConfigured) {
+      void syncPushToken();
+      return attachPushTokenListener();
+    }
+
     void syncDailyGoalReminder(me, dailyGoal);
     void syncCrewScheduledNotifications({
       me,
@@ -52,8 +59,10 @@ export function PushNotificationsSetup() {
 
   useEffect(() => {
     const sub = addNotificationResponseListener((response) => {
-      const type = response.notification.request.content.data?.type;
-      if (type === 'daily_goal_reminder' || CREW_ALERT_TYPES.has(String(type))) {
+      const type = String(response.notification.request.content.data?.type);
+      if (type === 'chat_message') {
+        router.push('/(tabs)/chat');
+      } else if (type === 'daily_goal_reminder' || CREW_ALERT_TYPES.has(type)) {
         router.push('/(tabs)/log');
       }
     });

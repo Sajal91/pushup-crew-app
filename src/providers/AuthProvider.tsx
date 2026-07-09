@@ -27,7 +27,8 @@ import {
 } from '@/lib/crewDb';
 import { useAppStore } from '@/state/useAppStore';
 import { clearDailyGoalReminderOnSignOut } from '@/lib/notifications';
-import { handleTeammatePushupLog } from '@/lib/crewNotifications';
+import { handleTeammateChatMessage, handleTeammatePushupLog } from '@/lib/crewNotifications';
+import { clearPushTokenOnSignOut } from '@/lib/pushToken';
 import { SPLASH_MIN_MS } from '@/hooks/useMinSplashElapsed';
 
 type SignInResult =
@@ -266,7 +267,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           filter: `crew_id=eq.${crewId}`,
         },
         (payload) => {
-          applyRemoteChatMessage(mapDbChatMessage(payload.new as DbChatMessage));
+          const message = mapDbChatMessage(payload.new as DbChatMessage);
+          applyRemoteChatMessage(message);
+
+          if (!supabaseConfigured) {
+            const state = useAppStore.getState();
+            void handleTeammateChatMessage({
+              message,
+              crew: state.crew,
+              meId: state.meId,
+              activeScreen: state.activeScreen,
+            });
+          }
         },
       )
       .on(
@@ -284,7 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const meId = state.meId;
 
           void state.syncCrewFromDb().then(() => {
-            if (row.user_id === meId) return;
+            if (row.user_id === meId || supabaseConfigured) return;
             const next = useAppStore.getState();
             const me = next.crew.find((m) => m.id === meId) ?? next.crew.find((m) => m.isMe);
             void handleTeammatePushupLog({
@@ -395,6 +407,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authBootstrappedRef.current = false;
       setAccountReady(false);
       await clearDailyGoalReminderOnSignOut();
+      await clearPushTokenOnSignOut();
       await authSignOut();
       await resetOnboarding();
       clearAuthProfile();

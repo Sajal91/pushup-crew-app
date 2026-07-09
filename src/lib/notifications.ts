@@ -21,7 +21,8 @@ export type CrewNotificationType =
   | 'flame_extinguisher'
   | 'free_pass'
   | 'morning_ledger'
-  | 'milestone_feast';
+  | 'milestone_feast'
+  | 'chat_message';
 
 export type CrewNotificationPayload = {
   type: CrewNotificationType;
